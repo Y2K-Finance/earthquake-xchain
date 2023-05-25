@@ -76,7 +76,7 @@ contract Y2KTraderJoeZap is IErrors {
             path.tokenPath
         );
         path.tokenPath[0].safeTransferFrom(msg.sender, pairs[0], fromAmount);
-        uint256 amountOut = _swapAndDeposit(
+        uint256 amountOut = _swap(
             pairs,
             path.tokenPath,
             path.versions,
@@ -90,7 +90,7 @@ contract Y2KTraderJoeZap is IErrors {
         IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 
-    function _swapAndDeposit(
+    function _swap(
         address[] memory pairs,
         IERC20[] calldata path,
         Version[] calldata versions,

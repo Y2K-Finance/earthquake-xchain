@@ -74,6 +74,51 @@ contract ZapV2Test is Config {
         vm.stopPrank();
     }
 
+    // TODO: Single zap on Arb only from WETH to USDT
+    function test_SwapAndDepositCurve() public {
+        vm.startPrank(sender);
+        (
+            address fromToken,
+            address toToken,
+            int128 i,
+            int128 j,
+            address pool,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDTtoWETHCurve(address(zapCurveUSDT), EARTHQUAKE_VAULT_USDT);
+
+        zapCurveUSDT.zapInSingleEth(
+            fromToken,
+            toToken,
+            uint128(i),
+            uint128(j),
+            pool,
+            fromAmount,
+            toAmountMin,
+            id,
+            false
+        );
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_SwapAndDepositGMX() public {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHV2Fork(address(zapGMX)); // NOTE: Uses the same inputs as V2 forks
+
+        zapGMX.zapIn(path, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
     // NOTE: Overflowing in the reserve comparison section of swap when receivedY() is called
     // NOTE: OVerflowing when (balanceOf(tokenY) - reserveY) i.e. reserveY must be > balanceOf(tokenY) (where reserveY is _reserves private state var)
     /// @notice this must be a sync issue with Foundry and the forked L2 - as tests sending fromToken and calling swap() also failed
@@ -81,7 +126,7 @@ contract ZapV2Test is Config {
         The contract for their router: https://arbiscan.io/address/0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30#code
         The implementation for pair is here: https://arbiscan.io/address/0xee5a90098b270596ec35d637b30d908c862c86df#code 
     */
-    function test_SwapAndDepositTraderJoe() public {
+    function test_SwapAndDepositTraderJoe() private {
         vm.startPrank(sender);
         (
             Y2KTraderJoeZap.Path memory path,

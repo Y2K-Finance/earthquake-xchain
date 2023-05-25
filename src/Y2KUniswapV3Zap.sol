@@ -38,7 +38,7 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
         uint256 id
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
-        uint256 amountOut = _swapAndDeposit(path, fee, fromAmount);
+        uint256 amountOut = _swap(path, fee, fromAmount);
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
         ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
         IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
@@ -62,34 +62,39 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
         );
     }
 
-    function _swapAndDeposit(
+    function _swap(
         address[] calldata path,
         uint24[] calldata fee,
         uint256 fromAmount
     ) internal returns (uint256 amountOut) {
         if (path.length > 2) {
-            amountOut = _swap(path[0], path[1], fromAmount, fee[0]);
+            amountOut = _executeSwap(path[0], path[1], fromAmount, fee[0]);
             uint256 swapLength = path.length - 2;
             for (uint256 i = 1; i < swapLength; ) {
-                amountOut = _swap(path[i], path[i + 1], amountOut, fee[i]);
+                amountOut = _executeSwap(
+                    path[i],
+                    path[i + 1],
+                    amountOut,
+                    fee[i]
+                );
                 unchecked {
                     i++;
                 }
             }
             // NOTE: SwapLength is cached as path.length - 2 i.e. swapLength + 2 = path.length - 2 and swapLength + 1 = path.length - 1
             return
-                _swap(
+                _executeSwap(
                     path[swapLength],
                     path[swapLength + 1],
                     amountOut,
                     fee[swapLength + 1]
                 );
         } else {
-            return _swap(path[0], path[1], fromAmount, fee[0]);
+            return _executeSwap(path[0], path[1], fromAmount, fee[0]);
         }
     }
 
-    function _swap(
+    function _executeSwap(
         address tokenIn,
         address tokenOut,
         uint256 fromAmount,

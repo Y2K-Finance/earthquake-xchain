@@ -27,17 +27,12 @@ contract Y2KChronosZap is IErrors {
         bool stable
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
-        uint256 amountOut = _swapAndDeposit(
-            path,
-            fromAmount,
-            toAmountMin,
-            stable
-        );
+        uint256 amountOut = _swap(path, fromAmount, toAmountMin, stable);
         ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
         IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 
-    function _swapAndDeposit(
+    function _swap(
         address[] calldata path,
         uint256 fromAmount,
         uint256 toAmountMin,
