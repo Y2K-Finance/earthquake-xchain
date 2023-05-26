@@ -37,6 +37,8 @@ abstract contract Helper {
         0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
     address constant BALANCER_VAULT =
         0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+    bytes32 constant USDT_USDC_POOL_ID_BALANCER =
+        0x1533a3278f3f9141d5f820a184ea4b017fce2382000000000000000000000016;
     bytes32 constant USDC_WETH_POOL_ID_BALANCER =
         0x64541216bafffeec8ea535bb71fbc927831d0595000100000000000000000002;
     address constant USDC_WETH_POOL_CURVE =
@@ -160,6 +162,33 @@ contract Config is Test, Helper {
         return (path, fromAmount, toAmountMin, id);
     }
 
+    function setupUSDCtoUSDTtoWETHV2Fork(
+        address wrapperAddress
+    ) public returns (address[] memory path, uint256, uint256, uint256) {
+        deal(USDC_ADDRESS, sender, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+
+        path = new address[](3);
+        path[0] = USDC_ADDRESS;
+        path[1] = USDT_ADDRESS;
+        path[2] = WETH_ADDRESS;
+        uint256 fromAmount = 10_000_000;
+        uint256 toAmountMin = 500_000_000_000_000;
+        uint256 id = EPOCH_ID;
+
+        bool approved = IERC20(USDC_ADDRESS).approve(
+            address(wrapperAddress),
+            fromAmount
+        );
+        assertEq(approved, true);
+        assertEq(
+            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            fromAmount
+        );
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+        return (path, fromAmount, toAmountMin, id);
+    }
+
     function setupUSDCtoWETHBalancer(
         address wrapperAddress
     )
@@ -199,6 +228,65 @@ contract Config is Test, Helper {
         return (singleSwap, fromAmount, toAmountMin, id);
     }
 
+    function setupUSDTtoUSDCtoWETHBalancer(
+        address wrapperAddress
+    )
+        public
+        returns (
+            IBalancerVault.SwapKind kind,
+            IBalancerVault.BatchSwapStep[] memory batchSwap,
+            address[] memory assets,
+            int256[] memory limits,
+            uint256 deadline,
+            uint256 id
+        )
+    {
+        deal(USDT_ADDRESS, sender, 10_000_000);
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 10e6);
+
+        uint256 fromAmount = 10_000_000;
+        uint256 toAmountMin = 500_000_000_000_000;
+        id = 1684713600;
+        kind = IBalancerVault.SwapKind.GIVEN_IN;
+
+        batchSwap = new IBalancerVault.BatchSwapStep[](2);
+        batchSwap[0].poolId = USDT_USDC_POOL_ID_BALANCER;
+        batchSwap[0].assetInIndex = 2;
+        batchSwap[0].assetOutIndex = 1;
+        batchSwap[0].amount = fromAmount;
+        batchSwap[0].userData = bytes("");
+        batchSwap[1].poolId = USDC_WETH_POOL_ID_BALANCER;
+        batchSwap[1].assetInIndex = 0;
+        batchSwap[1].assetOutIndex = 1;
+        batchSwap[1].amount = 0;
+        batchSwap[1].userData = bytes("");
+
+        assets = new address[](3);
+        assets[0] = USDT_ADDRESS;
+        assets[1] = USDC_ADDRESS;
+        assets[2] = WETH_ADDRESS;
+
+        limits = new int256[](3);
+        limits[0] = int256(fromAmount);
+        limits[1] = 0;
+        limits[2] = int256(toAmountMin) - (2 * int256(toAmountMin));
+
+        deadline = block.timestamp + 3600;
+
+        bool approved = IERC20(USDT_ADDRESS).approve(
+            address(wrapperAddress),
+            fromAmount
+        );
+        assertEq(approved, true);
+        assertEq(
+            IERC20(USDT_ADDRESS).allowance(sender, address(wrapperAddress)),
+            fromAmount
+        );
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+
+        return (kind, batchSwap, assets, limits, deadline, id);
+    }
+
     function setupUSDCtoWETHV3(
         address wrapperAddress
     )
@@ -220,6 +308,46 @@ contract Config is Test, Helper {
         path[0] = USDC_ADDRESS;
         path[1] = WETH_ADDRESS;
         fee[0] = 500;
+        uint256 fromAmount = 10_000_000;
+        uint256 toAmountMin = 500_000_000_000_000;
+        uint256 id = EPOCH_ID;
+
+        bool approved = IERC20(USDC_ADDRESS).approve(
+            address(wrapperAddress),
+            fromAmount
+        );
+        assertEq(approved, true);
+        assertEq(
+            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            fromAmount
+        );
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+        return (path, fee, fromAmount, toAmountMin, id);
+    }
+
+    function setupUSDCtoUSDTtoWETHV3(
+        address wrapperAddress
+    )
+        public
+        returns (
+            address[] memory path,
+            uint24[] memory fee,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        deal(USDC_ADDRESS, sender, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+
+        path = new address[](3);
+        fee = new uint24[](2);
+
+        path[0] = USDC_ADDRESS;
+        path[1] = USDT_ADDRESS;
+        path[2] = WETH_ADDRESS;
+        fee[0] = 100;
+        fee[1] = 500;
         uint256 fromAmount = 10_000_000;
         uint256 toAmountMin = 500_000_000_000_000;
         uint256 id = EPOCH_ID;
@@ -273,6 +401,47 @@ contract Config is Test, Helper {
         assertEq(approved, true);
         assertEq(
             IERC20(USDT_ADDRESS).allowance(sender, address(wrapperAddress)),
+            fromAmount
+        );
+        assertEq(IERC1155(vaultAddress).balanceOf(sender, id), 0);
+    }
+
+    function setupUSDCtoUSDTtoWETHCurve(
+        address wrapperAddress,
+        address vaultAddress
+    )
+        public
+        returns (
+            address fromToken,
+            address toToken,
+            int128 i,
+            int128 j,
+            address pool,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        )
+    {
+        deal(USDC_ADDRESS, sender, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+
+        fromToken = USDC_ADDRESS;
+        toToken = WETH_ADDRESS;
+        i = 0;
+        j = 2;
+        pool = USDC_WETH_POOL_CURVE;
+
+        fromAmount = 10_000_000;
+        toAmountMin = 500_000_000_000_000;
+        id = EPOCH_ID;
+
+        bool approved = IERC20(USDC_ADDRESS).approve(
+            address(wrapperAddress),
+            fromAmount
+        );
+        assertEq(approved, true);
+        assertEq(
+            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
             fromAmount
         );
         assertEq(IERC1155(vaultAddress).balanceOf(sender, id), 0);

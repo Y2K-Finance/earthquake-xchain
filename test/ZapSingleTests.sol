@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import {Config, IERC20, IERC1155, IBalancerVault} from "./Helper.sol";
 import {Y2KTraderJoeZap, ILBPair} from "../src/Y2KTraderJoeZap.sol";
 
-contract ZapV2Test is Config {
+contract ZapSingleTest is Config {
     function setUp() public override {
         super.setUp();
     }
@@ -43,21 +43,6 @@ contract ZapV2Test is Config {
         vm.stopPrank();
     }
 
-    function test_SwapAndDepositBalancer() public {
-        vm.startPrank(sender);
-        (
-            IBalancerVault.SingleSwap memory singleSwap,
-            uint256 fromAmount,
-            uint256 toAmountMin,
-            uint256 id
-        ) = setupUSDCtoWETHBalancer(address(zapBalancer));
-
-        zapBalancer.zapIn(singleSwap, fromAmount, toAmountMin, id);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
-        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
-        vm.stopPrank();
-    }
-
     function test_SwapAndDepositUniswapV3() public {
         vm.startPrank(sender);
         (
@@ -74,7 +59,21 @@ contract ZapV2Test is Config {
         vm.stopPrank();
     }
 
-    // TODO: Single zap on Arb only from WETH to USDT
+    function test_SwapAndDepositBalancer() public {
+        vm.startPrank(sender);
+        (
+            IBalancerVault.SingleSwap memory singleSwap,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHBalancer(address(zapBalancer));
+
+        zapBalancer.zapIn(singleSwap, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
     function test_SwapAndDepositCurve() public {
         vm.startPrank(sender);
         (

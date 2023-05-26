@@ -69,8 +69,7 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
     ) internal returns (uint256 amountOut) {
         if (path.length > 2) {
             amountOut = _executeSwap(path[0], path[1], fromAmount, fee[0]);
-            uint256 swapLength = path.length - 2;
-            for (uint256 i = 1; i < swapLength; ) {
+            for (uint256 i = 1; i < path.length - 2; ) {
                 amountOut = _executeSwap(
                     path[i],
                     path[i + 1],
@@ -81,13 +80,12 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
                     i++;
                 }
             }
-            // NOTE: SwapLength is cached as path.length - 2 i.e. swapLength + 2 = path.length - 2 and swapLength + 1 = path.length - 1
             return
                 _executeSwap(
-                    path[swapLength],
-                    path[swapLength + 1],
+                    path[path.length - 2],
+                    path[path.length - 1],
                     amountOut,
-                    fee[swapLength + 1]
+                    fee[path.length - 2]
                 );
         } else {
             return _executeSwap(path[0], path[1], fromAmount, fee[0]);

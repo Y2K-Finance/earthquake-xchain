@@ -7,8 +7,6 @@ import {ICamelotPair} from "./interfaces/ICamelotPair.sol";
 import {IEarthquake} from "./interfaces/IEarthquake.sol";
 import {IErrors} from "./interfaces/IErrors.sol";
 
-import "lib/forge-std/src/console.sol";
-
 contract Y2KCamelotZap is IErrors {
     using SafeTransferLib for ERC20;
     address public immutable CAMELOT_V2_FACTORY;
@@ -41,6 +39,9 @@ contract Y2KCamelotZap is IErrors {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
+        // TODO: More efficent way to use this amount?
+        uint256 cachedFrom = fromAmount;
+
         for (uint256 i = 0; i < path.length - 1; ) {
             {
                 address fromToken = path[i];
@@ -56,9 +57,10 @@ contract Y2KCamelotZap is IErrors {
 
                 // NOTE: Need to query the fee percent set by Camelot
                 amounts[i] = ICamelotPair(pairs[i]).getAmountOut(
-                    fromAmount,
+                    cachedFrom,
                     fromToken
                 );
+                cachedFrom = amounts[i];
             }
 
             unchecked {
@@ -77,10 +79,10 @@ contract Y2KCamelotZap is IErrors {
             ICamelotPair(pairs[0]).swap(
                 zeroForOne ? 0 : amounts[0],
                 zeroForOne ? amounts[0] : 0,
-                address(this),
+                pairs[1],
                 ""
             );
-            for (uint256 i = 1; i < path.length - 1; ) {
+            for (uint256 i = 1; i < pairs.length - 1; ) {
                 zeroForOne = path[i] < path[i + 1];
                 ICamelotPair(pairs[i]).swap(
                     zeroForOne ? 0 : amounts[i],
@@ -93,9 +95,9 @@ contract Y2KCamelotZap is IErrors {
                 }
             }
             zeroForOne = path[path.length - 2] < path[path.length - 1];
-            ICamelotPair(pairs[path.length - 1]).swap(
-                zeroForOne ? 0 : amounts[path.length - 1],
-                zeroForOne ? amounts[path.length - 1] : 0,
+            ICamelotPair(pairs[pairs.length - 1]).swap(
+                zeroForOne ? 0 : amounts[pairs.length - 1],
+                zeroForOne ? amounts[pairs.length - 1] : 0,
                 address(this),
                 ""
             );

@@ -7,6 +7,8 @@ import {IBalancerVault} from "./interfaces/IBalancerVault.sol";
 import {IEarthquake} from "./interfaces/IEarthquake.sol";
 import {IErrors} from "./interfaces/IErrors.sol";
 
+import {console} from "forge-std/console.sol";
+
 contract Y2KBalancerZap is IErrors {
     using SafeTransferLib for ERC20;
     IBalancerVault public immutable BALANCER_VAULT;
@@ -46,6 +48,46 @@ contract Y2KBalancerZap is IErrors {
             block.timestamp + 60 * 15
         );
         ERC20(singleSwap.assetOut).safeApprove(EARTHQUAKE_VAULT, amountOut);
+        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
+    }
+
+    function zapInMulti(
+        IBalancerVault.SwapKind kind,
+        IBalancerVault.BatchSwapStep[] memory swaps,
+        address[] memory assets,
+        int256[] memory limits,
+        uint256 deadline,
+        uint256 id
+    ) external {
+        uint256 fromAmount = uint256(limits[0]);
+        address fromToken = assets[0];
+        ERC20(fromToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            fromAmount
+        );
+        ERC20(fromToken).safeApprove(address(BALANCER_VAULT), fromAmount);
+        int256[] memory assetDeltas = BALANCER_VAULT.batchSwap(
+            kind,
+            swaps,
+            assets,
+            IBalancerVault.Fundmanagement({
+                sender: address(this),
+                fromInternalBalance: false,
+                recipient: payable(address(this)),
+                toInternalBalance: false
+            }),
+            limits,
+            deadline
+        );
+        for (uint256 i = 0; i < assetDeltas.length - 1; i++) {
+            console.logInt(assetDeltas[i]);
+        }
+        uint256 amountOut = uint256(assetDeltas[assetDeltas.length - 1]);
+        ERC20(assets[assets.length - 1]).safeApprove(
+            EARTHQUAKE_VAULT,
+            amountOut
+        );
         IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 }

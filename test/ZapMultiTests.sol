@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.18;
+
+import {Config, IERC20, IERC1155, IBalancerVault} from "./Helper.sol";
+import {Y2KTraderJoeZap, ILBPair} from "../src/Y2KTraderJoeZap.sol";
+
+contract ZapMultiSwapTest is Config {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_forkAndConfig() public {
+        forkAndConfig();
+    }
+
+    function test_MultiswapAndDepositCamelot() public {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapCamelot));
+
+        zapCamelot.zapIn(path, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_MultiswapAndDepositSushiV2() public {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapSushiV2));
+
+        zapSushiV2.zapIn(path, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_MultiswapAndDepositUniswapV3() public {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint24[] memory fee,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoUSDTtoWETHV3(address(zapUniswapV3));
+
+        zapUniswapV3.zapIn(path, fee, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    // 521 error - should relate to the token not being registered
+    function test_MultiswapAndDepositBalancer() private {
+        vm.startPrank(sender);
+        (
+            IBalancerVault.SwapKind kind,
+            IBalancerVault.BatchSwapStep[] memory batchSwap,
+            address[] memory assets,
+            int256[] memory limits,
+            uint256 deadline,
+            uint256 id
+        ) = setupUSDTtoUSDCtoWETHBalancer(address(zapBalancer));
+
+        zapBalancer.zapInMulti(kind, batchSwap, assets, limits, deadline, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_MultiswapAndDepositCurve() public {
+        vm.startPrank(sender);
+        (
+            address fromToken,
+            address toToken,
+            int128 i,
+            int128 j,
+            address pool,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDTtoWETHCurve(address(zapCurveUSDT), EARTHQUAKE_VAULT_USDT);
+
+        zapCurveUSDT.zapInSingleEth(
+            fromToken,
+            toToken,
+            uint128(i),
+            uint128(j),
+            pool,
+            fromAmount,
+            toAmountMin,
+            id,
+            false
+        );
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_MultiswapAndDepositGMX() public {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapGMX)); // NOTE: Uses the same inputs as V2 forks
+
+        zapGMX.zapIn(path, fromAmount, toAmountMin, id);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+}

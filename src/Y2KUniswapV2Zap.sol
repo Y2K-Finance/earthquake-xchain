@@ -39,6 +39,9 @@ contract Y2KUniswapV2Zap is IErrors {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
+        // TODO: More efficent way to use this amount?
+        uint256 cachedFrom = fromAmount;
+
         for (uint256 i = 0; i < path.length - 1; ) {
             {
                 address fromToken = path[i];
@@ -52,8 +55,9 @@ contract Y2KUniswapV2Zap is IErrors {
                     (reserveA, reserveB) = (reserveB, reserveA);
 
                 amounts[i] =
-                    ((fromAmount * 997) * reserveB) /
-                    ((reserveA * 1000) + (fromAmount * 997));
+                    ((cachedFrom * 997) * reserveB) /
+                    ((reserveA * 1000) + (cachedFrom * 997));
+                cachedFrom = amounts[i];
             }
 
             unchecked {
@@ -72,10 +76,10 @@ contract Y2KUniswapV2Zap is IErrors {
             IUniswapPair(pairs[0]).swap(
                 zeroForOne ? 0 : amounts[0],
                 zeroForOne ? amounts[0] : 0,
-                address(this),
+                pairs[1],
                 ""
             );
-            for (uint256 i = 1; i < path.length - 1; ) {
+            for (uint256 i = 1; i < pairs.length - 1; ) {
                 zeroForOne = path[i] < path[i + 1];
                 IUniswapPair(pairs[i]).swap(
                     zeroForOne ? 0 : amounts[i],
@@ -88,9 +92,9 @@ contract Y2KUniswapV2Zap is IErrors {
                 }
             }
             zeroForOne = path[path.length - 2] < path[path.length - 1];
-            IUniswapPair(pairs[path.length - 1]).swap(
-                zeroForOne ? 0 : amounts[path.length - 1],
-                zeroForOne ? amounts[path.length - 1] : 0,
+            IUniswapPair(pairs[pairs.length - 1]).swap(
+                zeroForOne ? 0 : amounts[pairs.length - 1],
+                zeroForOne ? amounts[pairs.length - 1] : 0,
                 address(this),
                 ""
             );

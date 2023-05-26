@@ -25,25 +25,18 @@ contract Y2KGMXZap is IErrors {
         uint256 toAmountMin,
         uint256 id
     ) external {
-        uint256 amountOut = _swap(path[0], path[1], fromAmount);
-        if (path.length == 3) {
-            amountOut = _swap(path[1], path[2], amountOut);
-        }
-        if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
-        ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
-    }
-
-    function _swap(
-        address fromToken,
-        address toToken,
-        uint256 fromAmount
-    ) internal returns (uint256) {
-        ERC20(fromToken).safeTransferFrom(
+        ERC20(path[0]).safeTransferFrom(
             msg.sender,
             address(GMX_VAULT),
             fromAmount
         );
-        return GMX_VAULT.swap(fromToken, toToken, address(this));
+        uint256 amountOut = GMX_VAULT.swap(path[0], path[1], address(this));
+        if (path.length == 3) {
+            ERC20(path[1]).safeTransfer(address(GMX_VAULT), amountOut);
+            amountOut = GMX_VAULT.swap(path[1], path[2], address(this));
+        }
+        if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
+        ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
+        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 }
