@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import {Config, IERC20, IERC1155, IBalancerVault} from "./Helper.sol";
-import {Y2KTraderJoeZap, ILBPair} from "../src/Y2KTraderJoeZap.sol";
+import {Y2KTraderJoeZap, ILBPair} from "../src/zaps/Y2KTraderJoeZap.sol";
 
 contract ZapSingleTest is Config {
     function setUp() public override {

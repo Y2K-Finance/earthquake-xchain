@@ -3,11 +3,11 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {IUniswapPair} from "./interfaces/IUniswapPair.sol";
-import {IEarthquake} from "./interfaces/IEarthquake.sol";
-import {IErrors} from "./interfaces/IErrors.sol";
+import {IUniswapPair} from "../interfaces/IUniswapPair.sol";
+import {IEarthquake} from "../interfaces/IEarthquake.sol";
+import {IErrors} from "../interfaces/IErrors.sol";
 
-contract Y2KUniswapV2Zap is IErrors {
+contract Y2KChronosZap is IErrors {
     using SafeTransferLib for ERC20;
     address public immutable UNISWAP_V2_FORK_FACTORY;
     address public immutable EARTHQUAKE_VAULT;
@@ -23,10 +23,11 @@ contract Y2KUniswapV2Zap is IErrors {
         address[] calldata path,
         uint256 fromAmount,
         uint256 toAmountMin,
-        uint256 id
+        uint256 id,
+        bool stable
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
-        uint256 amountOut = _swap(path, fromAmount, toAmountMin);
+        uint256 amountOut = _swap(path, fromAmount, toAmountMin, stable);
         ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
         IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
@@ -34,20 +35,18 @@ contract Y2KUniswapV2Zap is IErrors {
     function _swap(
         address[] calldata path,
         uint256 fromAmount,
-        uint256 toAmountMin
+        uint256 toAmountMin,
+        bool stable
     ) internal returns (uint256 amountOut) {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
-
-        // TODO: More efficent way to use this amount?
-        uint256 cachedFrom = fromAmount;
 
         for (uint256 i = 0; i < path.length - 1; ) {
             {
                 address fromToken = path[i];
                 address toToken = path[i + 1];
 
-                pairs[i] = _getPair(fromToken, toToken);
+                pairs[i] = _getPair(fromToken, toToken, stable);
                 (uint256 reserveA, uint256 reserveB, ) = IUniswapPair(pairs[i])
                     .getReserves();
 
@@ -55,9 +54,8 @@ contract Y2KUniswapV2Zap is IErrors {
                     (reserveA, reserveB) = (reserveB, reserveA);
 
                 amounts[i] =
-                    ((cachedFrom * 997) * reserveB) /
-                    ((reserveA * 1000) + (cachedFrom * 997));
-                cachedFrom = amounts[i];
+                    ((fromAmount * 997) * reserveB) /
+                    ((reserveA * 1000) + (fromAmount * 997));
             }
 
             unchecked {
@@ -66,7 +64,7 @@ contract Y2KUniswapV2Zap is IErrors {
         }
 
         if (amounts[amounts.length - 1] < toAmountMin)
-            revert InvalidMinOut(amounts[amounts.length - 1]);
+            revert InvalidMinOut(amounts[path.length - 1]);
 
         SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
 
@@ -76,10 +74,10 @@ contract Y2KUniswapV2Zap is IErrors {
             IUniswapPair(pairs[0]).swap(
                 zeroForOne ? 0 : amounts[0],
                 zeroForOne ? amounts[0] : 0,
-                pairs[1],
+                address(this),
                 ""
             );
-            for (uint256 i = 1; i < pairs.length - 1; ) {
+            for (uint256 i = 1; i < path.length - 1; ) {
                 zeroForOne = path[i] < path[i + 1];
                 IUniswapPair(pairs[i]).swap(
                     zeroForOne ? 0 : amounts[i],
@@ -92,9 +90,9 @@ contract Y2KUniswapV2Zap is IErrors {
                 }
             }
             zeroForOne = path[path.length - 2] < path[path.length - 1];
-            IUniswapPair(pairs[pairs.length - 1]).swap(
-                zeroForOne ? 0 : amounts[pairs.length - 1],
-                zeroForOne ? amounts[pairs.length - 1] : 0,
+            IUniswapPair(pairs[path.length - 1]).swap(
+                zeroForOne ? 0 : amounts[path.length - 1],
+                zeroForOne ? amounts[path.length - 1] : 0,
                 address(this),
                 ""
             );
@@ -112,7 +110,8 @@ contract Y2KUniswapV2Zap is IErrors {
 
     function _getPair(
         address tokenA,
-        address tokenB
+        address tokenB,
+        bool stable
     ) internal view returns (address pair) {
         if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
         pair = address(
@@ -122,8 +121,8 @@ contract Y2KUniswapV2Zap is IErrors {
                         abi.encodePacked(
                             hex"ff",
                             UNISWAP_V2_FORK_FACTORY,
-                            keccak256(abi.encodePacked(tokenA, tokenB)),
-                            hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303" // init code hash
+                            keccak256(abi.encodePacked(tokenA, tokenB, stable)),
+                            hex"aaa43c87f3037d1e2148d80ef564bf86472a4ce2550ce64b7ed456ccaf3f7964" // init code hash
                         )
                     )
                 )

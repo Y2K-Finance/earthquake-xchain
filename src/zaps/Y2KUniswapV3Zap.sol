@@ -3,11 +3,11 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {BytesLib} from "./libraries/BytesLib.sol";
-import {IUniswapV3Pool} from "./interfaces/IUniswapV3Pool.sol";
-import {IUniswapV3Callback} from "./interfaces/IUniswapV3Callback.sol";
-import {IEarthquake} from "./interfaces/IEarthquake.sol";
-import {IErrors} from "./interfaces/IErrors.sol";
+import {BytesLib} from "../libraries/BytesLib.sol";
+import {IUniswapV3Pool} from "../interfaces/IUniswapV3Pool.sol";
+import {IUniswapV3Callback} from "../interfaces/IUniswapV3Callback.sol";
+import {IEarthquake} from "../interfaces/IEarthquake.sol";
+import {IErrors} from "../interfaces/IErrors.sol";
 
 contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
     using SafeTransferLib for ERC20;

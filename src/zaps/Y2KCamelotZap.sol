@@ -3,9 +3,9 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {ICamelotPair} from "./interfaces/ICamelotPair.sol";
-import {IEarthquake} from "./interfaces/IEarthquake.sol";
-import {IErrors} from "./interfaces/IErrors.sol";
+import {ICamelotPair} from "../interfaces/ICamelotPair.sol";
+import {IEarthquake} from "../interfaces/IEarthquake.sol";
+import {IErrors} from "../interfaces/IErrors.sol";
 
 contract Y2KCamelotZap is IErrors {
     using SafeTransferLib for ERC20;
