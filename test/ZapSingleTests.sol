@@ -95,8 +95,7 @@ contract ZapSingleTest is Config {
             pool,
             fromAmount,
             toAmountMin,
-            id,
-            false
+            id
         );
         assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(sender, id), 1);

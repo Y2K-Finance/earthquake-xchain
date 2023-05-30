@@ -66,7 +66,7 @@ contract Y2KUniswapV2Zap is IErrors {
         }
 
         if (amounts[amounts.length - 1] < toAmountMin)
-            revert InvalidMinOut(amounts[path.length - 1]);
+            revert InvalidMinOut(amounts[amounts.length - 1]);
 
         SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
 

@@ -57,6 +57,8 @@ contract Y2KTraderJoeZap is IErrors {
         address _earthquakeVault
     ) {
         if (legacyFactory == address(0)) revert InvalidInput();
+        if (factory == address(0)) revert InvalidInput();
+        if (factoryV1 == address(0)) revert InvalidInput();
         if (_earthquakeVault == address(0)) revert InvalidInput();
         LEGACY_FACTORY = ILBLegacyFactory(legacyFactory);
         FACTORY = ILBFactory(factory);

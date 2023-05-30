@@ -7,8 +7,6 @@ import {IBalancerVault} from "./interfaces/IBalancerVault.sol";
 import {IEarthquake} from "./interfaces/IEarthquake.sol";
 import {IErrors} from "./interfaces/IErrors.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract Y2KBalancerZap is IErrors {
     using SafeTransferLib for ERC20;
     IBalancerVault public immutable BALANCER_VAULT;
@@ -80,10 +78,8 @@ contract Y2KBalancerZap is IErrors {
             limits,
             deadline
         );
-        for (uint256 i = 0; i < assetDeltas.length - 1; i++) {
-            console.logInt(assetDeltas[i]);
-        }
-        uint256 amountOut = uint256(assetDeltas[assetDeltas.length - 1]);
+        // TODO: Confirm the last delta is always the amountOut
+        uint256 amountOut = uint256(-assetDeltas[assetDeltas.length - 1]);
         ERC20(assets[assets.length - 1]).safeApprove(
             EARTHQUAKE_VAULT,
             amountOut
