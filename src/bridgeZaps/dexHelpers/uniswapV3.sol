@@ -3,17 +3,16 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {BytesLib} from "../libraries/BytesLib.sol";
-import {IUniswapV3Pool} from "../interfaces/dexes/IUniswapV3Pool.sol";
-import {IUniswapV3Callback} from "../interfaces/dexes/IUniswapV3Callback.sol";
-import {IEarthquake} from "../interfaces/IEarthquake.sol";
-import {IErrors} from "../interfaces/IErrors.sol";
+import {BytesLib} from "../../libraries/BytesLib.sol";
+import {IUniswapV3Pool} from "../../interfaces/dexes/IUniswapV3Pool.sol";
+import {IUniswapV3Callback} from "../../interfaces/dexes/IUniswapV3Callback.sol";
+import {IEarthquake} from "../../interfaces/IEarthquake.sol";
+import {IErrors} from "../../interfaces/IErrors.sol";
 
-contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
+contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
     using SafeTransferLib for ERC20;
     using BytesLib for bytes;
     address public immutable UNISWAP_V3_FACTORY;
-    address public immutable EARTHQUAKE_VAULT;
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
     uint160 internal constant MIN_SQRT_RATIO = 4295128740;
 
@@ -23,25 +22,41 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
     bytes32 internal constant POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
-    constructor(address _uniswapV3Factory, address _earthquakeVault) {
+    constructor(address _uniswapV3Factory) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
-        if (_earthquakeVault == address(0)) revert InvalidInput();
         UNISWAP_V3_FACTORY = _uniswapV3Factory;
-        EARTHQUAKE_VAULT = _earthquakeVault;
     }
 
-    function zapIn(
-        address[] calldata path,
-        uint24[] calldata fee,
+    function _swapUniswapV3(
         uint256 fromAmount,
-        uint256 toAmountMin,
-        uint256 id
-    ) external {
-        ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
-        uint256 amountOut = _swap(path, fee, fromAmount);
+        bytes calldata payload
+    ) internal returns (uint256 amountOut) {
+        (address[] memory path, uint24[] memory fee, uint256 toAmountMin) = abi
+            .decode(payload, (address[], uint24[], uint256));
+        if (path.length > 2) {
+            amountOut = _executeSwap(path[0], path[1], fromAmount, fee[0]);
+            for (uint256 i = 1; i < path.length - 2; ) {
+                amountOut = _executeSwap(
+                    path[i],
+                    path[i + 1],
+                    amountOut,
+                    fee[i]
+                );
+                unchecked {
+                    i++;
+                }
+            }
+            amountOut = _executeSwap(
+                path[path.length - 2],
+                path[path.length - 1],
+                amountOut,
+                fee[path.length - 2]
+            );
+        } else {
+            amountOut = _executeSwap(path[0], path[1], fromAmount, fee[0]);
+        }
+
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
-        ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 
     function uniswapV3SwapCallback(
@@ -60,36 +75,6 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
             msg.sender,
             amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta)
         );
-    }
-
-    function _swap(
-        address[] calldata path,
-        uint24[] calldata fee,
-        uint256 fromAmount
-    ) internal returns (uint256 amountOut) {
-        if (path.length > 2) {
-            amountOut = _executeSwap(path[0], path[1], fromAmount, fee[0]);
-            for (uint256 i = 1; i < path.length - 2; ) {
-                amountOut = _executeSwap(
-                    path[i],
-                    path[i + 1],
-                    amountOut,
-                    fee[i]
-                );
-                unchecked {
-                    i++;
-                }
-            }
-            return
-                _executeSwap(
-                    path[path.length - 2],
-                    path[path.length - 1],
-                    amountOut,
-                    fee[path.length - 2]
-                );
-        } else {
-            return _executeSwap(path[0], path[1], fromAmount, fee[0]);
-        }
     }
 
     function _executeSwap(

@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
-import {IGMXVault} from "../interfaces/IGMXVault.sol";
+import {IGMXVault} from "../interfaces/dexes/IGMXVault.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 

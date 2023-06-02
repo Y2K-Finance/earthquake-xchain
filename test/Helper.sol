@@ -14,10 +14,10 @@ import {Y2KTraderJoeZap} from "../src/zaps/Y2KTraderJoeZap.sol";
 import {Y2KCurveZap} from "../src/zaps/Y2KCurveZap.sol";
 import {Y2KGMXZap} from "../src/zaps/Y2KGMXZap.sol";
 import {IErrors} from "../src/interfaces/IErrors.sol";
-import {ICamelotPair} from "../src/interfaces/ICamelotPair.sol";
-import {IUniswapPair} from "../src/interfaces/IUniswapPair.sol";
+import {ICamelotPair} from "../src/interfaces/dexes/ICamelotPair.sol";
+import {IUniswapPair} from "../src/interfaces/dexes/IUniswapPair.sol";
 
-import {IBalancerVault} from "../src/interfaces/IBalancerVault.sol";
+import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
 import {IEarthQuakeVault, IERC1155} from "./Interfaces.sol";
 
 interface IGMXVault {

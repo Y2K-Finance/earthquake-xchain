@@ -3,15 +3,15 @@ pragma solidity 0.8.18;
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IUniswapPair} from "../interfaces/IUniswapPair.sol";
+import {IUniswapPair} from "../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 
-import {ILBPair} from "../interfaces/ILBPair.sol";
-import {ILBLegacyPair} from "../interfaces/ILBLegacyPair.sol";
-import {ILBFactory} from "../interfaces/ILBFactory.sol";
-import {ILBLegacyFactory} from "../interfaces/ILBLegacyFactory.sol";
-import {IJoeFactory} from "../interfaces/IJoeFactory.sol";
+import {ILBPair} from "../interfaces/dexes/ILBPair.sol";
+import {ILBLegacyPair} from "../interfaces/dexes/ILBLegacyPair.sol";
+import {ILBFactory} from "../interfaces/dexes/ILBFactory.sol";
+import {ILBLegacyFactory} from "../interfaces/dexes/ILBLegacyFactory.sol";
+import {IJoeFactory} from "../interfaces/dexes/IJoeFactory.sol";
 import {PackedUint128Math} from "../libraries/PackedUint128Math.sol";
 
 import {console2 as console} from "lib/forge-std/src/console2.sol";

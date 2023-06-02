@@ -9,4 +9,5 @@ interface IErrors {
     error FailedCall(bytes data);
     error OnlyOwner();
     error InvalidCaller();
+    error NullBalance();
 }

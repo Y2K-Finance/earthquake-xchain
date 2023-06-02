@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {IErrors} from "../interfaces/IErrors.sol";
-import {IStargateRouter} from "../interfaces/IStargateRouter.sol";
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
+import {SwapController} from "./controllers/swapController.sol";
+import {IErrors} from "../interfaces/IErrors.sol";
+import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 
-contract ZapFrom is IErrors {
+contract ZapFrom is IErrors, SwapController {
     using SafeTransferLib for ERC20;
     // TODO: Best way to use a uint16 for the input in router?
     uint256 public constant ARBITRUM_CHAIN_ID = 42161;
@@ -15,17 +16,25 @@ contract ZapFrom is IErrors {
     bytes public constant ARB_RECEIVER = "0x00";
     address public immutable STARGATE_ROUTER;
 
-    constructor(address stargateRouter) {
+    constructor(
+        address stargateRouter,
+        address uniswapV2Factory,
+        address uniswapV3Factory,
+        address balancerVault
+    ) SwapController(uniswapV2Factory, uniswapV3Factory, balancerVault) {
         if (stargateRouter == address(0)) revert InvalidInput();
         STARGATE_ROUTER = stargateRouter;
     }
 
+    //////////////////////////////////////////////
+    //                 PUBLIC                   //
+    //////////////////////////////////////////////
     /// @param amountIn The qty of local _token contract tokens
     /// @param fromToken The fromChain token address
     /// @param srcPoolId The poolId for the fromChain
     /// @param dstPoolId The poolId for the toChain
     /// @param payload The encoded payload to deposit into vault abi.encode(receiver, vaultId)
-    function zapWithStargate(
+    function bridgeWithStargate(
         uint amountIn,
         address fromToken,
         uint16 srcPoolId,
@@ -36,6 +45,48 @@ contract ZapFrom is IErrors {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        _bridgeWithStargate(amountIn, fromToken, srcPoolId, dstPoolId, payload);
+    }
+
+    function swapThenBridgeWithStargate(
+        uint amountIn,
+        address fromToken,
+        address receivedToken,
+        uint16 srcPoolId,
+        uint16 dstPoolId,
+        bytes calldata swapPayload,
+        bytes calldata bridgePayload
+    ) external payable {
+        if (msg.value == 0) revert InvalidInput();
+        if (amountIn == 0) revert InvalidInput();
+
+        ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        // TODO: Check the values being passed from this
+        uint256 receivedAmount = _swap(
+            swapPayload[0],
+            amountIn,
+            swapPayload[1:]
+        );
+        _bridgeWithStargate(
+            receivedAmount,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            bridgePayload
+        );
+    }
+
+    //////////////////////////////////////////////
+    //                 INTERNAL                 //
+    //////////////////////////////////////////////
+
+    function _bridgeWithStargate(
+        uint amountIn,
+        address fromToken,
+        uint16 srcPoolId,
+        uint16 dstPoolId,
+        bytes calldata payload
+    ) private {
         ERC20(fromToken).safeApprove(STARGATE_ROUTER, amountIn);
 
         // Sends tokens to the destChain

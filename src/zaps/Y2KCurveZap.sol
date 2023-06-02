@@ -5,7 +5,7 @@ import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
-import {ICurvePair} from "../interfaces/ICurvePair.sol";
+import {ICurvePair} from "../interfaces/dexes/ICurvePair.sol";
 
 contract Y2KCurveZap is IErrors {
     using SafeTransferLib for ERC20;
