@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {Config, IERC20, IERC1155, IBalancerVault} from "./Helper.sol";
-import {Y2KTraderJoeZap, ILBPair} from "../src/zaps/Y2KTraderJoeZap.sol";
+import {Config, IERC20} from "./utils/Helper.sol";
+import {IERC1155} from "./utils/Interfaces.sol";
+import {Y2KTraderJoeZap, ILBPair} from "../src//zaps/Y2KTraderJoeZap.sol";
+import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
 
-contract ZapMultiSwapTest is Config {
-    function setUp() public override {
-        super.setUp();
-    }
-
-    function test_forkAndConfig() public {
-        forkAndConfig();
-    }
-
+contract ZapSwapMultiTest is Config {
     function test_MultiswapAndDepositCamelot() public {
         vm.startPrank(sender);
         (

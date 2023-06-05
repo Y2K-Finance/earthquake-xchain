@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {Config, IERC20, IERC1155, IBalancerVault} from "./Helper.sol";
+import {Config, IERC20} from "./utils/Helper.sol";
+import {IERC1155} from "./utils/Interfaces.sol";
+import {PermitUtils} from "./utils/PermitUtils.sol";
 import {Y2KTraderJoeZap, ILBPair} from "../src/zaps/Y2KTraderJoeZap.sol";
+import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
+import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
 
-contract ZapSingleTest is Config {
-    function setUp() public override {
-        super.setUp();
-    }
-
-    function test_forkAndConfig() public {
-        forkAndConfig();
-    }
-
+contract ZapSwapSingleTest is Config, PermitUtils {
+    /////////////////////////////////////////
+    //          ZAP with APPROVE           //
+    /////////////////////////////////////////
     function test_SwapAndDepositCamelot() public {
         vm.startPrank(sender);
         (
@@ -20,7 +19,7 @@ contract ZapSingleTest is Config {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapCamelot));
+        ) = setupUSDCtoWETHV2Fork(address(zapCamelot), sender);
 
         zapCamelot.zapIn(path, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
@@ -35,7 +34,7 @@ contract ZapSingleTest is Config {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapSushiV2));
+        ) = setupUSDCtoWETHV2Fork(address(zapSushiV2), sender);
 
         zapSushiV2.zapIn(path, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
@@ -109,7 +108,7 @@ contract ZapSingleTest is Config {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapGMX)); // NOTE: Uses the same inputs as V2 forks
+        ) = setupUSDCtoWETHV2Fork(address(zapGMX), sender); // NOTE: Uses the same inputs as V2 forks
 
         zapGMX.zapIn(path, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
@@ -150,12 +149,65 @@ contract ZapSingleTest is Config {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapChronos));
+        ) = setupUSDCtoWETHV2Fork(address(zapChronos), sender);
         bool stable;
 
         zapChronos.zapIn(path, fromAmount, toAmountMin, id, stable);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
+    }
+
+    /////////////////////////////////////////
+    //          ZAP with PERMIT            //
+    /////////////////////////////////////////
+
+    function test_PermitSwapAndDepositCamelot() private {
+        vm.startPrank(sender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHV2Fork(address(zapCamelot), fromPermit);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitUSDCtoWETHV2Fork(address(zapCamelot), fromAmount);
+
+        zapCamelot.zapInPermit(
+            path,
+            toAmountMin,
+            id,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    function setupPermitUSDCtoWETHV2Fork(
+        address zapAddress,
+        uint256 fromAmount
+    )
+        public
+        view
+        returns (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        )
+    {
+        uint256 nonce = 0;
+        permit = defaultERC20PermitTransfer(USDC_ADDRESS, nonce, fromAmount);
+        sig = getPermitTransferSignature(
+            permit,
+            fromPrivateKey,
+            DOMAIN_SEPARATOR
+        );
+        transferDetails = getTransferDetails(zapAddress, fromAmount);
     }
 }

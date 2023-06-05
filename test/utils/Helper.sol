@@ -5,25 +5,28 @@ import "forge-std/Test.sol";
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {Y2KCamelotZap} from "../src/zaps/Y2KCamelotZap.sol";
-import {Y2KUniswapV2Zap} from "../src/zaps/Y2KUniswapV2Zap.sol";
-import {Y2KChronosZap} from "../src/zaps/Y2KChronosZap.sol";
-import {Y2KBalancerZap} from "../src/zaps/Y2KBalancerZap.sol";
-import {Y2KUniswapV3Zap} from "../src/zaps/Y2KUniswapV3Zap.sol";
-import {Y2KTraderJoeZap} from "../src/zaps/Y2KTraderJoeZap.sol";
-import {Y2KCurveZap} from "../src/zaps/Y2KCurveZap.sol";
-import {Y2KGMXZap} from "../src/zaps/Y2KGMXZap.sol";
-import {IErrors} from "../src/interfaces/IErrors.sol";
-import {ICamelotPair} from "../src/interfaces/dexes/ICamelotPair.sol";
-import {IUniswapPair} from "../src/interfaces/dexes/IUniswapPair.sol";
+import {Y2KCamelotZap} from "../../src//zaps/Y2KCamelotZap.sol";
+import {Y2KUniswapV2Zap} from "../../src//zaps/Y2KUniswapV2Zap.sol";
+import {Y2KChronosZap} from "../../src//zaps/Y2KChronosZap.sol";
+import {Y2KBalancerZap} from "../../src//zaps/Y2KBalancerZap.sol";
+import {Y2KUniswapV3Zap} from "../../src//zaps/Y2KUniswapV3Zap.sol";
+import {Y2KTraderJoeZap} from "../../src//zaps/Y2KTraderJoeZap.sol";
+import {Y2KCurveZap} from "../../src//zaps/Y2KCurveZap.sol";
+import {Y2KGMXZap} from "../../src//zaps/Y2KGMXZap.sol";
 
-import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
+import {IBalancerVault} from "../../src/interfaces/dexes/IBalancerVault.sol";
 import {IEarthQuakeVault, IERC1155} from "./Interfaces.sol";
+import {ICamelotPair} from "../../src/interfaces/dexes/ICamelotPair.sol";
+import {IUniswapPair} from "../../src/interfaces/dexes/IUniswapPair.sol";
 
 interface IGMXVault {
     function getMinPrice(address) external view returns (uint256);
 
     function getMaxPrice(address) external view returns (uint256);
+}
+
+interface IPermit2 {
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
 }
 
 abstract contract Helper {
@@ -49,6 +52,7 @@ abstract contract Helper {
         0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
     address constant BALANCER_VAULT =
         0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+    address constant PERMIT_2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     bytes32 constant USDT_USDC_POOL_ID_BALANCER =
         0x1533a3278f3f9141d5f820a184ea4b017fce2382000000000000000000000016;
@@ -84,6 +88,17 @@ abstract contract Helper {
     uint256 constant EPOCH_BEGIN = 1684281600;
     uint256 constant EPOCH_ID_USDT = 1684713600;
     uint256 constant EPOCH_BEGIN_USDT = 1684281600;
+
+    //////////////// PERMIT2 VARS ////////////////
+    uint256 fromPrivateKey = 0x12341234;
+    address fromPermit;
+    bytes32 DOMAIN_SEPARATOR;
+    bytes32 public constant _TOKEN_PERMISSIONS_TYPEHASH =
+        keccak256("TokenPermissions(address token,uint256 amount)");
+    bytes32 public constant _PERMIT_TRANSFER_FROM_TYPEHASH =
+        keccak256(
+            "PermitTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+        );
 }
 
 contract Config is Test, Helper {
@@ -109,7 +124,11 @@ contract Config is Test, Helper {
         vm.warp(EPOCH_BEGIN - 1);
         // vm.roll(90815015);
 
-        zapCamelot = new Y2KCamelotZap(CAMELOT_FACTORY, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
+        zapCamelot = new Y2KCamelotZap(
+            CAMELOT_FACTORY,
+            EARTHQUAKE_VAULT,
+            PERMIT_2
+        ); // Earthquake Vault | DAI RISK
         zapSushiV2 = new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
         zapBalancer = new Y2KBalancerZap(BALANCER_VAULT, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
         zapUniswapV3 = new Y2KUniswapV3Zap(
@@ -147,331 +166,9 @@ contract Config is Test, Helper {
         vm.label(address(zapUniswapV3), "Uniswap V3 Zapper");
         vm.label(address(zapTraderJoe), "Trader Joe Zapper");
         vm.label(address(zapCurve), "Curve Zapper");
-    }
 
-    function forkAndConfig() public {
-        assertEq(vm.activeFork(), arbitrumFork);
-        assertEq(ERC20(USDC_ADDRESS).symbol(), "USDC");
-        assertEq(zapCamelot.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-        assertEq(
-            IEarthQuakeVault(EARTHQUAKE_VAULT).controller(),
-            EARTHQUAKE_CONTROLLER
-        );
-        assertEq(
-            IEarthQuakeVault(EARTHQUAKE_VAULT).idEpochBegin(EPOCH_ID),
-            EPOCH_BEGIN
-        );
-        assertEq(block.timestamp, EPOCH_BEGIN - 1);
-    }
-
-    /////////////////////////////////////////
-    //               STATE VARS            //
-    /////////////////////////////////////////
-
-    function testStateVars_Camelotet() public {
-        assertEq(zapCamelot.CAMELOT_V2_FACTORY(), CAMELOT_FACTORY);
-        assertEq(zapCamelot.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_Sushi() public {
-        assertEq(zapSushiV2.UNISWAP_V2_FORK_FACTORY(), SUSHI_V2_FACTORY);
-        assertEq(zapSushiV2.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_Balancer() public {
-        assertEq(address(zapBalancer.BALANCER_VAULT()), BALANCER_VAULT);
-        assertEq(zapBalancer.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_UniswapV3() public {
-        assertEq(zapUniswapV3.UNISWAP_V3_FACTORY(), UNISWAP_V3_FACTORY);
-        assertEq(zapUniswapV3.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_Curve() public {
-        assertEq(zapCurve.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_GMX() public {
-        assertEq(address(zapGMX.GMX_VAULT()), GMX_VAULT);
-        assertEq(zapGMX.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_TraderJoe() public {
-        assertEq(address(zapTraderJoe.LEGACY_FACTORY()), TJ_LEGACY_FACTORY);
-        assertEq(address(zapTraderJoe.FACTORY()), TJ_FACTORY);
-        assertEq(address(zapTraderJoe.FACTORY_V1()), TJ_FACTORY_V1);
-        assertEq(zapTraderJoe.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    function testStateVars_Chronos() public {
-        assertEq(zapChronos.UNISWAP_V2_FORK_FACTORY(), CHRONOS_FACTORY);
-        assertEq(zapChronos.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
-    }
-
-    /////////////////////////////////////////
-    //                 ERRORS              //
-    /////////////////////////////////////////
-
-    function testErrors_Camelot() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCamelotZap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCamelotZap(CAMELOT_FACTORY, address(0));
-
-        vm.startPrank(sender);
-        (
-            address[] memory path,
-            uint256 fromAmount,
-            ,
-            uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapCamelot));
-
-        // Dynamically fetch the amountOut
-        uint256 amountOut = ICamelotPair(CAMELOT_USDC_WETH_PAIR).getAmountOut(
-            fromAmount,
-            path[0]
-        );
-
-        // Execute revert with dynamic data
-        vm.expectRevert(
-            abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
-        );
-        zapCamelot.zapIn(path, fromAmount, amountOut + 1, id);
-    }
-
-    function testErrors_Sushi() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV2Zap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, address(0));
-
-        vm.startPrank(sender);
-        (
-            address[] memory path,
-            uint256 fromAmount,
-            ,
-            uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapSushiV2));
-
-        // Dynamically fetch the amountOut
-        (uint256 reserveA, uint256 reserveB, ) = IUniswapPair(
-            SUSHI_USDC_WETH_PAIR
-        ).getReserves();
-        if (path[0] > path[1]) (reserveA, reserveB) = (reserveB, reserveA);
-        uint256 amountOut = ((fromAmount * 997) * reserveB) /
-            ((reserveA * 1000) + (fromAmount * 997));
-
-        // Execute the revert with dynamic data
-        vm.expectRevert(
-            abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
-        );
-        zapSushiV2.zapIn(path, fromAmount, amountOut + 1, id);
-    }
-
-    function testErors_UniswapV3() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV3Zap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV3Zap(UNISWAP_V3_FACTORY, address(0));
-
-        // // staging for revert test
-        // vm.startPrank(sender);
-        // (
-        //     address[] memory path,
-        //     uint24[] memory fee,
-        //     uint256 fromAmount,
-        //     ,
-        //     uint256 id
-        // ) = setupUSDCtoWETHV3(address(zapUniswapV3));
-
-        // // Dynamically fetch the amountOut
-        // // TODO: Best way to fetch the dynamic value?
-        // uint256 amountOut = 0;
-
-        // // Execute the revert with dynamic data
-        // vm.expectRevert(
-        //     abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
-        // );
-        // zapUniswapV3.zapIn(path, fee, fromAmount, toAmountMin, id);
-
-        bytes memory data = abi.encode(USDC_ADDRESS, WETH_ADDRESS, 500);
-        vm.expectRevert(IErrors.InvalidCaller.selector);
-        zapUniswapV3.uniswapV3SwapCallback(100, 100, data);
-    }
-
-    function testErrors_Balancer() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KBalancerZap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KBalancerZap(BALANCER_VAULT, address(0));
-    }
-
-    function testErrors_Curve() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCurveZap(address(0));
-
-        // TODO: Invalid output from swap to wrong type of pool (zapInSingle)
-
-        // staging for zapInSingles (Standard and ETH)
-        vm.startPrank(sender);
-        (
-            address fromToken,
-            ,
-            int128 i,
-            int128 j,
-            address pool,
-            uint256 fromAmount,
-            uint256 toAmountMin,
-            uint256 id
-        ) = setupUSDTtoWETHCurve(address(zapCurveUSDT), EARTHQUAKE_VAULT_USDT);
-
-        vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInSingleEth(
-            fromToken,
-            FRAX_ADDRESS,
-            uint128(i),
-            uint128(j),
-            pool,
-            fromAmount,
-            toAmountMin,
-            id
-        );
-
-        vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInSingle(
-            fromToken,
-            FRAX_ADDRESS,
-            i,
-            j,
-            pool,
-            fromAmount,
-            toAmountMin,
-            id
-        );
-
-        (
-            address[] memory path,
-            address[] memory pools,
-            uint256[] memory iValues,
-            uint256[] memory jValues,
-            ,
-            ,
-
-        ) = setupUSDCtoUSDTtoWETHCurve(
-                address(zapCurveUSDT),
-                EARTHQUAKE_VAULT_USDT
-            );
-
-        // changing amountOut to revert
-        vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            100 ether,
-            id
-        );
-
-        path[2] = FRAX_ADDRESS;
-        vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            toAmountMin,
-            id
-        );
-
-        // TODO: Invalid output from swap to wrong type of pool (zapInMulti)
-    }
-
-    function testErrors_GMX() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KGMXZap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KGMXZap(GMX_VAULT, address(0));
-
-        // staging the revert test
-        vm.startPrank(sender);
-        (
-            address[] memory path,
-            uint256 fromAmount,
-            ,
-            uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapGMX)); // NOTE: Uses the same inputs as V2 forks
-
-        // Dynamically fetch the amountOut
-        uint256 priceIn = IGMXVault(GMX_VAULT).getMinPrice(path[0]);
-        uint256 priceOut = IGMXVault(GMX_VAULT).getMaxPrice(path[1]);
-        uint256 amountOut = (fromAmount * priceIn) / priceOut;
-        amountOut = (amountOut * (10 ** 18)) / (10 ** 6);
-
-        // amount after fees
-        amountOut =
-            (amountOut * (BASIS_POINTS_DIVISOR - 32)) /
-            BASIS_POINTS_DIVISOR;
-
-        vm.expectRevert(
-            abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
-        );
-        zapGMX.zapIn(path, fromAmount, amountOut + 1, id);
-    }
-
-    function testErrors_TraderJoe() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            address(0),
-            TJ_FACTORY,
-            TJ_FACTORY_V1,
-            EARTHQUAKE_VAULT
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            address(0),
-            TJ_FACTORY_V1,
-            EARTHQUAKE_VAULT
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            TJ_FACTORY,
-            address(0),
-            EARTHQUAKE_VAULT
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            TJ_FACTORY,
-            TJ_FACTORY_V1,
-            address(0)
-        );
-
-        // TODO: InvalidMinOut from (zapIn)
-        // TODO: InvalidPair from _getPair
-        // TODO: InvalidPair from _getLBPairInformation
-    }
-
-    function testErrors_Chronos() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KChronosZap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KChronosZap(CHRONOS_FACTORY, address(0));
-        // TODO: AmountOutMin insufficient
+        DOMAIN_SEPARATOR = IPermit2(PERMIT_2).DOMAIN_SEPARATOR();
+        fromPermit = vm.addr(fromPrivateKey);
     }
 
     /////////////////////////////////////////
@@ -479,10 +176,11 @@ contract Config is Test, Helper {
     /////////////////////////////////////////
 
     function setupUSDCtoWETHV2Fork(
-        address wrapperAddress
+        address wrapperAddress,
+        address senderAddress
     ) public returns (address[] memory path, uint256, uint256, uint256) {
-        deal(USDC_ADDRESS, sender, 10_000_000);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+        deal(USDC_ADDRESS, senderAddress, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(senderAddress), 10e6);
 
         path = new address[](2);
         path[0] = USDC_ADDRESS;
@@ -497,7 +195,10 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDC_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
         assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);

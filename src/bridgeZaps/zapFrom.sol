@@ -34,7 +34,7 @@ contract ZapFrom is IErrors, SwapController {
     /// @param srcPoolId The poolId for the fromChain
     /// @param dstPoolId The poolId for the toChain
     /// @param payload The encoded payload to deposit into vault abi.encode(receiver, vaultId)
-    function bridgeWithStargate(
+    function bridge(
         uint amountIn,
         address fromToken,
         uint16 srcPoolId,
@@ -45,10 +45,38 @@ contract ZapFrom is IErrors, SwapController {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        _bridgeWithStargate(amountIn, fromToken, srcPoolId, dstPoolId, payload);
+        _bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
     }
 
-    function swapThenBridgeWithStargate(
+    function permitSwapThenBridge(
+        uint amountIn,
+        address fromToken,
+        address receivedToken,
+        uint16 srcPoolId,
+        uint16 dstPoolId,
+        bytes calldata swapPayload,
+        bytes calldata bridgePayload
+    ) external payable {
+        if (msg.value == 0) revert InvalidInput();
+        if (amountIn == 0) revert InvalidInput();
+
+        // TODO: implement permit2 for the fromToken transfer
+        ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        uint256 receivedAmount = _swap(
+            swapPayload[0],
+            amountIn,
+            swapPayload[1:]
+        );
+        _bridge(
+            receivedAmount,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            bridgePayload
+        );
+    }
+
+    function swapThenBridge(
         uint amountIn,
         address fromToken,
         address receivedToken,
@@ -61,13 +89,12 @@ contract ZapFrom is IErrors, SwapController {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        // TODO: Check the values being passed from this
         uint256 receivedAmount = _swap(
             swapPayload[0],
             amountIn,
             swapPayload[1:]
         );
-        _bridgeWithStargate(
+        _bridge(
             receivedAmount,
             receivedToken,
             srcPoolId,
@@ -80,7 +107,7 @@ contract ZapFrom is IErrors, SwapController {
     //                 INTERNAL                 //
     //////////////////////////////////////////////
 
-    function _bridgeWithStargate(
+    function _bridge(
         uint amountIn,
         address fromToken,
         uint16 srcPoolId,

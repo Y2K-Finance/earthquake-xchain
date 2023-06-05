@@ -6,17 +6,26 @@ import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {ICamelotPair} from "../interfaces/dexes/ICamelotPair.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
+import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
+import {IPermit2} from "../interfaces/IPermit2.sol";
 
-contract Y2KCamelotZap is IErrors {
+contract Y2KCamelotZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     address public immutable CAMELOT_V2_FACTORY;
     address public immutable EARTHQUAKE_VAULT;
+    IPermit2 public immutable PERMIT_2;
 
-    constructor(address _uniswapV2Factory, address _earthquakeVault) {
+    constructor(
+        address _uniswapV2Factory,
+        address _earthquakeVault,
+        address _permit2
+    ) {
         if (_uniswapV2Factory == address(0)) revert InvalidInput();
         if (_earthquakeVault == address(0)) revert InvalidInput();
+        if (_permit2 == address(0)) revert InvalidInput();
         CAMELOT_V2_FACTORY = _uniswapV2Factory;
         EARTHQUAKE_VAULT = _earthquakeVault;
+        PERMIT_2 = IPermit2(_permit2);
     }
 
     function zapIn(
@@ -27,8 +36,30 @@ contract Y2KCamelotZap is IErrors {
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
         uint256 amountOut = _swap(path, fromAmount, toAmountMin);
-        ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
+        _deposit(path[path.length - 1], id, amountOut);
+    }
+
+    function zapInPermit(
+        address[] calldata path,
+        uint256 toAmountMin,
+        uint256 id,
+        PermitTransferFrom memory permit,
+        SignatureTransferDetails calldata transferDetails,
+        bytes calldata sig
+    ) external {
+        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        // TODO: Check the value used for transferDetails.requestedAmount
+        uint256 amountOut = _swap(
+            path,
+            transferDetails.requestedAmount,
+            toAmountMin
+        );
+        _deposit(path[path.length - 1], id, amountOut);
+    }
+
+    function _deposit(address fromToken, uint256 id, uint256 amountIn) private {
+        ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);
+        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
     }
 
     function _swap(
