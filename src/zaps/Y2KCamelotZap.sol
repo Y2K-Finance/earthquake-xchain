@@ -28,6 +28,10 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         PERMIT_2 = IPermit2(_permit2);
     }
 
+    /////////////////////////////////////////
+    //        PUBLIC FUNCTIONS             //
+    /////////////////////////////////////////
+
     function zapIn(
         address[] calldata path,
         uint256 fromAmount,
@@ -56,6 +60,10 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         );
         _deposit(path[path.length - 1], id, amountOut);
     }
+
+    /////////////////////////////////////////
+    //    INTERNAL & PRIVATE FUNCTIONS     //
+    /////////////////////////////////////////
 
     function _deposit(address fromToken, uint256 id, uint256 amountIn) private {
         ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);

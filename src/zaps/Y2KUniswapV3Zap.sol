@@ -8,27 +8,41 @@ import {IUniswapV3Pool} from "../interfaces/dexes/IUniswapV3Pool.sol";
 import {IUniswapV3Callback} from "../interfaces/dexes/IUniswapV3Callback.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
+import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
+import {IPermit2} from "../interfaces/IPermit2.sol";
 
-contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
+contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     using BytesLib for bytes;
-    address public immutable UNISWAP_V3_FACTORY;
-    address public immutable EARTHQUAKE_VAULT;
+
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
     uint160 internal constant MIN_SQRT_RATIO = 4295128740;
-
     /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
     uint160 internal constant MAX_SQRT_RATIO =
         1461446703485210103287273052203988822378723970341;
     bytes32 internal constant POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
-    constructor(address _uniswapV3Factory, address _earthquakeVault) {
+    address public immutable UNISWAP_V3_FACTORY;
+    address public immutable EARTHQUAKE_VAULT;
+    IPermit2 public immutable PERMIT_2;
+
+    constructor(
+        address _uniswapV3Factory,
+        address _earthquakeVault,
+        address _permit2
+    ) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
         if (_earthquakeVault == address(0)) revert InvalidInput();
+        if (_permit2 == address(0)) revert InvalidInput();
         UNISWAP_V3_FACTORY = _uniswapV3Factory;
         EARTHQUAKE_VAULT = _earthquakeVault;
+        PERMIT_2 = IPermit2(_permit2);
     }
+
+    /////////////////////////////////////////
+    //        PUBLIC FUNCTIONS             //
+    /////////////////////////////////////////
 
     function zapIn(
         address[] calldata path,
@@ -40,8 +54,22 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
         uint256 amountOut = _swap(path, fee, fromAmount);
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
-        ERC20(path[path.length - 1]).safeApprove(EARTHQUAKE_VAULT, amountOut);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
+        _deposit(path[path.length - 1], id, amountOut);
+    }
+
+    function zapInPermit(
+        address[] calldata path,
+        uint24[] calldata fee,
+        uint256 toAmountMin,
+        uint256 id,
+        PermitTransferFrom memory permit,
+        SignatureTransferDetails calldata transferDetails,
+        bytes calldata sig
+    ) external {
+        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        uint256 amountOut = _swap(path, fee, transferDetails.requestedAmount);
+        if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
+        _deposit(path[path.length - 1], id, amountOut);
     }
 
     function uniswapV3SwapCallback(
@@ -60,6 +88,15 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
             msg.sender,
             amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta)
         );
+    }
+
+    /////////////////////////////////////////
+    //    INTERNAL & PRIVATE FUNCTIONS     //
+    /////////////////////////////////////////
+
+    function _deposit(address fromToken, uint256 id, uint256 amountIn) private {
+        ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);
+        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
     }
 
     function _swap(
@@ -97,7 +134,7 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
         address tokenOut,
         uint256 fromAmount,
         uint24 fee
-    ) internal returns (uint256) {
+    ) private returns (uint256) {
         bool zeroForOne = tokenIn < tokenOut;
 
         if (zeroForOne) {
@@ -129,7 +166,7 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback {
         address tokenA,
         address tokenB,
         uint24 fee
-    ) internal view returns (address pool) {
+    ) private view returns (address pool) {
         if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
         pool = address(
             uint160(

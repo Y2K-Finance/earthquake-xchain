@@ -2,13 +2,14 @@
 pragma solidity 0.8.18;
 
 import {Config, IERC20} from "./utils/Helper.sol";
-import {IERC1155} from "./utils/Interfaces.sol";
+import {IERC1155, IPermit2} from "./utils/Interfaces.sol";
 import {PermitUtils} from "./utils/PermitUtils.sol";
 import {Y2KTraderJoeZap, ILBPair} from "../src/zaps/Y2KTraderJoeZap.sol";
 import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
 import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
+import {IPermit2 as Permit2} from "../src/interfaces/IPermit2.sol";
 
-contract ZapSwapSingleTest is Config, PermitUtils {
+contract ZapSwapSingleTest is Config {
     /////////////////////////////////////////
     //          ZAP with APPROVE           //
     /////////////////////////////////////////
@@ -50,7 +51,7 @@ contract ZapSwapSingleTest is Config, PermitUtils {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV3(address(zapUniswapV3));
+        ) = setupUSDCtoWETHV3(address(zapUniswapV3), sender);
 
         zapUniswapV3.zapIn(path, fee, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
@@ -65,7 +66,7 @@ contract ZapSwapSingleTest is Config, PermitUtils {
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHBalancer(address(zapBalancer));
+        ) = setupUSDCtoWETHBalancer(address(zapBalancer), sender);
 
         zapBalancer.zapIn(singleSwap, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
@@ -78,19 +79,23 @@ contract ZapSwapSingleTest is Config, PermitUtils {
         (
             address fromToken,
             address toToken,
-            int128 i,
-            int128 j,
+            uint256 i,
+            uint256 j,
             address pool,
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDTtoWETHCurve(address(zapCurveUSDT), EARTHQUAKE_VAULT_USDT);
+        ) = setupUSDTtoWETHCurve(
+                address(zapCurveUSDT),
+                EARTHQUAKE_VAULT_USDT,
+                sender
+            );
 
-        zapCurveUSDT.zapInSingleEth(
+        zapCurveUSDT.zapIn(
             fromToken,
             toToken,
-            uint128(i),
-            uint128(j),
+            i,
+            j,
             pool,
             fromAmount,
             toAmountMin,
@@ -160,21 +165,25 @@ contract ZapSwapSingleTest is Config, PermitUtils {
 
     /////////////////////////////////////////
     //          ZAP with PERMIT            //
-    /////////////////////////////////////////
-
-    function test_PermitSwapAndDepositCamelot() private {
-        vm.startPrank(sender);
+    ////////////////////////////////////////
+    function test_PermitSwapAndDepositCamelot() public {
+        vm.startPrank(permitSender);
         (
             address[] memory path,
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
-        ) = setupUSDCtoWETHV2Fork(address(zapCamelot), fromPermit);
+        ) = setupUSDCtoWETHV2Fork(address(zapCamelot), permitSender);
         (
             ISignatureTransfer.PermitTransferFrom memory permit,
             ISignatureTransfer.SignatureTransferDetails memory transferDetails,
             bytes memory sig
-        ) = setupPermitUSDCtoWETHV2Fork(address(zapCamelot), fromAmount);
+        ) = setupPermitSwap(
+                address(zapCamelot),
+                address(zapCamelot),
+                fromAmount,
+                USDC_ADDRESS
+            );
 
         zapCamelot.zapInPermit(
             path,
@@ -184,30 +193,177 @@ contract ZapSwapSingleTest is Config, PermitUtils {
             transferDetails,
             sig
         );
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
-        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
         vm.stopPrank();
     }
 
-    function setupPermitUSDCtoWETHV2Fork(
-        address zapAddress,
-        uint256 fromAmount
-    )
-        public
-        view
-        returns (
+    function test_PermitSwapAndDepositSushiV2() public {
+        vm.startPrank(permitSender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHV2Fork(address(zapSushiV2), permitSender);
+        (
             ISignatureTransfer.PermitTransferFrom memory permit,
             ISignatureTransfer.SignatureTransferDetails memory transferDetails,
             bytes memory sig
-        )
-    {
-        uint256 nonce = 0;
-        permit = defaultERC20PermitTransfer(USDC_ADDRESS, nonce, fromAmount);
-        sig = getPermitTransferSignature(
+        ) = setupPermitSwap(
+                address(zapSushiV2),
+                address(zapSushiV2),
+                fromAmount,
+                USDC_ADDRESS
+            );
+
+        zapSushiV2.zapInPermit(
+            path,
+            toAmountMin,
+            id,
             permit,
-            fromPrivateKey,
-            DOMAIN_SEPARATOR
+            transferDetails,
+            sig
         );
-        transferDetails = getTransferDetails(zapAddress, fromAmount);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_PermitSwapAndDepositUniswapV3() public {
+        vm.startPrank(permitSender);
+        (
+            address[] memory path,
+            uint24[] memory fee,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHV3(address(zapUniswapV3), permitSender);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapUniswapV3),
+                address(zapUniswapV3),
+                fromAmount,
+                USDC_ADDRESS
+            );
+
+        zapUniswapV3.zapInPermit(
+            path,
+            fee,
+            toAmountMin,
+            id,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_PermitSwapAndDepositBalancer() public {
+        vm.startPrank(permitSender);
+        (
+            IBalancerVault.SingleSwap memory singleSwap,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHBalancer(address(zapBalancer), permitSender);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapBalancer),
+                address(zapBalancer),
+                fromAmount,
+                USDC_ADDRESS
+            );
+
+        zapBalancer.zapInPermit(
+            singleSwap,
+            toAmountMin,
+            id,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_PermitSwapAndDepositCurve() public {
+        vm.startPrank(permitSender);
+        (
+            ,
+            address toToken,
+            uint256 i,
+            uint256 j,
+            address pool,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDTtoWETHCurve(
+                address(zapCurveUSDT),
+                EARTHQUAKE_VAULT_USDT,
+                permitSender
+            );
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapCurveUSDT),
+                address(zapCurveUSDT),
+                fromAmount,
+                USDT_ADDRESS
+            );
+
+        zapCurveUSDT.zapInPermit(
+            toToken,
+            i,
+            j,
+            pool,
+            toAmountMin,
+            id,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(
+            IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(permitSender, id),
+            1
+        );
+        vm.stopPrank();
+    }
+
+    function test_PermitSwapAndDepositGMX() public {
+        vm.startPrank(permitSender);
+        (
+            address[] memory path,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoWETHV2Fork(address(zapGMX), permitSender); // NOTE: Uses the same inputs as V2 forks
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                GMX_VAULT,
+                address(zapGMX),
+                fromAmount,
+                USDC_ADDRESS
+            );
+
+        zapGMX.zapInPermit(path, toAmountMin, id, permit, transferDetails, sig);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
+        vm.stopPrank();
     }
 }

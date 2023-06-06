@@ -3,8 +3,11 @@ pragma solidity 0.8.18;
 
 import {Config, IERC20} from "./utils/Helper.sol";
 import {IERC1155} from "./utils/Interfaces.sol";
+import {Y2KCurveZap} from "../src/zaps/Y2KCurveZap.sol";
 import {Y2KTraderJoeZap, ILBPair} from "../src//zaps/Y2KTraderJoeZap.sol";
 import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
+import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
+import {IPermit2 as Permit2} from "../src/interfaces/IPermit2.sol";
 
 contract ZapSwapMultiTest is Config {
     function test_MultiswapAndDepositCamelot() public {
@@ -99,7 +102,6 @@ contract ZapSwapMultiTest is Config {
         vm.stopPrank();
     }
 
-    // 521 error - should relate to the token not being registered
     function test_MultiswapAndDepositBalancer() public {
         vm.startPrank(sender);
         (
@@ -109,7 +111,7 @@ contract ZapSwapMultiTest is Config {
             int256[] memory limits,
             uint256 deadline,
             uint256 id
-        ) = setupUSDTtoUSDCtoWETHBalancer(address(zapBalancer));
+        ) = setupUSDTtoUSDCtoWETHBalancer(address(zapBalancer), sender);
 
         zapBalancer.zapInMulti(kind, batchSwap, assets, limits, deadline, id);
         assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 0);
@@ -146,7 +148,8 @@ contract ZapSwapMultiTest is Config {
             uint256 id
         ) = setupUSDCtoUSDTtoWETHCurve(
                 address(zapCurveUSDT),
-                EARTHQUAKE_VAULT_USDT
+                EARTHQUAKE_VAULT_USDT,
+                sender
             );
 
         zapCurveUSDT.zapInMulti(
@@ -204,6 +207,93 @@ contract ZapSwapMultiTest is Config {
         zapGMX.zapIn(path, fromAmount, toAmountMin, id);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
+        vm.stopPrank();
+    }
+
+    /////////////////////////////////////////
+    //          ZAP with PERMIT            //
+    ////////////////////////////////////////
+    function test_PermitMultiswapAndDepositBalancer() public {
+        vm.startPrank(permitSender);
+        (
+            IBalancerVault.SwapKind kind,
+            IBalancerVault.BatchSwapStep[] memory batchSwap,
+            address[] memory assets,
+            int256[] memory limits,
+            ,
+            uint256 id
+        ) = setupUSDTtoUSDCtoWETHBalancer(address(zapBalancer), permitSender);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapBalancer),
+                address(zapBalancer),
+                batchSwap[0].amount,
+                USDT_ADDRESS
+            );
+
+        zapBalancer.zapInMultiPermit(
+            kind,
+            batchSwap,
+            assets,
+            limits,
+            id,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(permitSender, id), 1);
+        vm.stopPrank();
+    }
+
+    function test_PermitMultiswapAndDepositCurve() public {
+        vm.startPrank(permitSender);
+        (
+            address[] memory path,
+            address[] memory pools,
+            uint256[] memory iValues,
+            uint256[] memory jValues,
+            uint256 fromAmount,
+            uint256 toAmountMin,
+            uint256 id
+        ) = setupUSDCtoUSDTtoWETHCurve(
+                address(zapCurveUSDT),
+                EARTHQUAKE_VAULT_USDT,
+                permitSender
+            );
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapCurveUSDT),
+                address(zapCurveUSDT),
+                fromAmount,
+                USDC_ADDRESS
+            );
+
+        Y2KCurveZap.MultiSwapInfo memory multiSwapInfo;
+        multiSwapInfo.path = path;
+        multiSwapInfo.pools = pools;
+        multiSwapInfo.iValues = iValues;
+        multiSwapInfo.jValues = jValues;
+        multiSwapInfo.toAmountMin = toAmountMin;
+
+        zapCurveUSDT.zapInMultiPermit(
+            id,
+            multiSwapInfo,
+            permit,
+            transferDetails,
+            sig
+        );
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertGe(
+            IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(permitSender, id),
+            1
+        );
         vm.stopPrank();
     }
 }

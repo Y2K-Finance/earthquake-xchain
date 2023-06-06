@@ -13,11 +13,14 @@ import {Y2KUniswapV3Zap} from "../../src//zaps/Y2KUniswapV3Zap.sol";
 import {Y2KTraderJoeZap} from "../../src//zaps/Y2KTraderJoeZap.sol";
 import {Y2KCurveZap} from "../../src//zaps/Y2KCurveZap.sol";
 import {Y2KGMXZap} from "../../src//zaps/Y2KGMXZap.sol";
+import {PermitUtils} from "./PermitUtils.sol";
 
 import {IBalancerVault} from "../../src/interfaces/dexes/IBalancerVault.sol";
 import {IEarthQuakeVault, IERC1155} from "./Interfaces.sol";
 import {ICamelotPair} from "../../src/interfaces/dexes/ICamelotPair.sol";
 import {IUniswapPair} from "../../src/interfaces/dexes/IUniswapPair.sol";
+import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
+import {IPermit2} from "./Interfaces.sol";
 
 interface IGMXVault {
     function getMinPrice(address) external view returns (uint256);
@@ -25,11 +28,7 @@ interface IGMXVault {
     function getMaxPrice(address) external view returns (uint256);
 }
 
-interface IPermit2 {
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
-}
-
-abstract contract Helper {
+abstract contract Helper is Test {
     address constant USDC_ADDRESS = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address constant USDT_ADDRESS = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address constant DAI_ADDRESS = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
@@ -90,18 +89,26 @@ abstract contract Helper {
     uint256 constant EPOCH_BEGIN_USDT = 1684281600;
 
     //////////////// PERMIT2 VARS ////////////////
-    uint256 fromPrivateKey = 0x12341234;
-    address fromPermit;
-    bytes32 DOMAIN_SEPARATOR;
-    bytes32 public constant _TOKEN_PERMISSIONS_TYPEHASH =
-        keccak256("TokenPermissions(address token,uint256 amount)");
-    bytes32 public constant _PERMIT_TRANSFER_FROM_TYPEHASH =
+    uint256 permitSenderKey = 0x123;
+    uint256 permitReceiverKey = 0x456;
+    address permitSender;
+    address permitReceiver;
+
+    string public constant _PERMIT_TRANSFER_TYPEHASH_STUB =
+        "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,";
+    string public constant _TOKEN_PERMISSIONS_TYPESTRING =
+        "TokenPermissions(address token,uint256 amount)";
+    string constant WITNESS_TYPE_STRING =
+        "MockWitness witness)MockWitness(uint256 value,address person,bool test)TokenPermissions(address token,uint256 amount)";
+    string constant MOCK_WITNESS_TYPE =
+        "MockWitness(uint256 value,address person,bool test)";
+    bytes32 constant FULL_EXAMPLE_WITNESS_TYPEHASH =
         keccak256(
-            "PermitTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+            "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,MockWitness witness)MockWitness(uint256 value,address person,bool test)TokenPermissions(address token,uint256 amount)"
         );
 }
 
-contract Config is Test, Helper {
+contract Config is Helper, PermitUtils {
     string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
     string public ARBITRUM_RPC_URL = vm.envString("ARBITRUM_RPC_URL");
     Y2KCamelotZap public zapCamelot;
@@ -129,15 +136,28 @@ contract Config is Test, Helper {
             EARTHQUAKE_VAULT,
             PERMIT_2
         ); // Earthquake Vault | DAI RISK
-        zapSushiV2 = new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
-        zapBalancer = new Y2KBalancerZap(BALANCER_VAULT, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
+        zapSushiV2 = new Y2KUniswapV2Zap(
+            SUSHI_V2_FACTORY,
+            EARTHQUAKE_VAULT,
+            PERMIT_2
+        ); // Earthquake Vault | DAI RISK
+        zapBalancer = new Y2KBalancerZap(
+            BALANCER_VAULT,
+            EARTHQUAKE_VAULT,
+            PERMIT_2
+        ); // Earthquake Vault | DAI RISK
         zapUniswapV3 = new Y2KUniswapV3Zap(
             UNISWAP_V3_FACTORY,
-            EARTHQUAKE_VAULT
+            EARTHQUAKE_VAULT,
+            PERMIT_2
         );
-        zapCurve = new Y2KCurveZap(EARTHQUAKE_VAULT);
-        zapCurveUSDT = new Y2KCurveZap(EARTHQUAKE_VAULT_USDT);
-        zapGMX = new Y2KGMXZap(GMX_VAULT, EARTHQUAKE_VAULT);
+        zapCurve = new Y2KCurveZap(EARTHQUAKE_VAULT, WETH_ADDRESS, PERMIT_2);
+        zapCurveUSDT = new Y2KCurveZap(
+            EARTHQUAKE_VAULT_USDT,
+            WETH_ADDRESS,
+            PERMIT_2
+        );
+        zapGMX = new Y2KGMXZap(GMX_VAULT, EARTHQUAKE_VAULT, PERMIT_2);
         zapTraderJoe = new Y2KTraderJoeZap(
             TJ_LEGACY_FACTORY,
             TJ_FACTORY,
@@ -167,12 +187,28 @@ contract Config is Test, Helper {
         vm.label(address(zapTraderJoe), "Trader Joe Zapper");
         vm.label(address(zapCurve), "Curve Zapper");
 
-        DOMAIN_SEPARATOR = IPermit2(PERMIT_2).DOMAIN_SEPARATOR();
-        fromPermit = vm.addr(fromPrivateKey);
+        permitSender = vm.addr(permitSenderKey);
+        permitReceiver = vm.addr(permitReceiverKey);
+        vm.label(permitSender, "PermitReceiver");
+        vm.label(permitReceiver, "PermitSender");
+
+        setERC20TestTokenApprovals(vm, permitSender, PERMIT_2);
+    }
+
+    function setERC20TestTokenApprovals(
+        Vm vm,
+        address owner,
+        address spender
+    ) public {
+        vm.startPrank(owner);
+        IERC20(USDC_ADDRESS).approve(spender, type(uint256).max);
+        IERC20(USDT_ADDRESS).approve(spender, type(uint256).max);
+        IERC20(WETH_ADDRESS).approve(spender, type(uint256).max);
+        vm.stopPrank();
     }
 
     /////////////////////////////////////////
-    //               HELPERS               //
+    //        SIMPLE SWAP HELPERS           //
     /////////////////////////////////////////
 
     function setupUSDCtoWETHV2Fork(
@@ -291,7 +327,8 @@ contract Config is Test, Helper {
     }
 
     function setupUSDCtoWETHBalancer(
-        address wrapperAddress
+        address wrapperAddress,
+        address senderAddress
     )
         public
         returns (
@@ -301,8 +338,8 @@ contract Config is Test, Helper {
             uint256
         )
     {
-        deal(USDC_ADDRESS, sender, 10_000_000);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+        deal(USDC_ADDRESS, senderAddress, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(senderAddress), 10e6);
 
         uint256 fromAmount = 10_000_000;
         uint256 toAmountMin = 500_000_000_000_000;
@@ -321,16 +358,20 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDC_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
-        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(senderAddress, id), 0);
 
         return (singleSwap, fromAmount, toAmountMin, id);
     }
 
     function setupUSDTtoUSDCtoWETHBalancer(
-        address wrapperAddress
+        address wrapperAddress,
+        address senderAddress
     )
         public
         returns (
@@ -346,8 +387,8 @@ contract Config is Test, Helper {
         uint256 toAmountMin = 500_000_000_000_000;
         id = 1684713600;
 
-        deal(USDT_ADDRESS, sender, fromAmount);
-        assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), fromAmount);
+        deal(USDT_ADDRESS, senderAddress, fromAmount);
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(senderAddress), fromAmount);
 
         kind = IBalancerVault.SwapKind.GIVEN_IN;
 
@@ -382,10 +423,13 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDT_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDT_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
-        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(senderAddress, id), 0);
 
         return (kind, batchSwap, assets, limits, deadline, id);
     }
@@ -459,7 +503,8 @@ contract Config is Test, Helper {
     }
 
     function setupUSDCtoWETHV3(
-        address wrapperAddress
+        address wrapperAddress,
+        address senderAddress
     )
         public
         returns (
@@ -470,8 +515,8 @@ contract Config is Test, Helper {
             uint256
         )
     {
-        deal(USDC_ADDRESS, sender, 10_000_000);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+        deal(USDC_ADDRESS, senderAddress, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(senderAddress), 10e6);
 
         path = new address[](2);
         fee = new uint24[](1);
@@ -489,10 +534,13 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDC_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
-        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
+        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(senderAddress, id), 0);
         return (path, fee, fromAmount, toAmountMin, id);
     }
 
@@ -581,22 +629,23 @@ contract Config is Test, Helper {
 
     function setupUSDTtoWETHCurve(
         address wrapperAddress,
-        address vaultAddress
+        address vaultAddress,
+        address senderAddress
     )
         public
         returns (
             address fromToken,
             address toToken,
-            int128 i,
-            int128 j,
+            uint256 i,
+            uint256 j,
             address pool,
             uint256 fromAmount,
             uint256 toAmountMin,
             uint256 id
         )
     {
-        deal(USDT_ADDRESS, sender, 10_000_000);
-        assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 10e6);
+        deal(USDT_ADDRESS, senderAddress, 10_000_000);
+        assertEq(IERC20(USDT_ADDRESS).balanceOf(senderAddress), 10e6);
 
         fromToken = USDT_ADDRESS;
         toToken = WETH_ADDRESS;
@@ -614,15 +663,19 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDT_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDT_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
-        assertEq(IERC1155(vaultAddress).balanceOf(sender, id), 0);
+        assertEq(IERC1155(vaultAddress).balanceOf(senderAddress, id), 0);
     }
 
     function setupUSDCtoUSDTtoWETHCurve(
         address wrapperAddress,
-        address vaultAddress
+        address vaultAddress,
+        address senderAddress
     )
         public
         returns (
@@ -635,8 +688,8 @@ contract Config is Test, Helper {
             uint256 id
         )
     {
-        deal(USDC_ADDRESS, sender, 10_000_000);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 10e6);
+        deal(USDC_ADDRESS, senderAddress, 10_000_000);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(senderAddress), 10e6);
 
         path = new address[](3);
         path[0] = USDC_ADDRESS;
@@ -665,10 +718,13 @@ contract Config is Test, Helper {
         );
         assertEq(approved, true);
         assertEq(
-            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
+            IERC20(USDC_ADDRESS).allowance(
+                senderAddress,
+                address(wrapperAddress)
+            ),
             fromAmount
         );
-        assertEq(IERC1155(vaultAddress).balanceOf(sender, id), 0);
+        assertEq(IERC1155(vaultAddress).balanceOf(senderAddress, id), 0);
     }
 
     function setupFRAXtoUSDCtoUSDTtoWETHCurve(
@@ -763,5 +819,28 @@ contract Config is Test, Helper {
         );
         assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
         return (path, fromAmount, toAmountMin, id);
+    }
+
+    /////////////////////////////////////////
+    //        PERMIT SWAP HELPERS           //
+    /////////////////////////////////////////
+    function setupPermitSwap(
+        address receiver,
+        address spender,
+        uint256 fromAmount,
+        address token
+    )
+        public
+        view
+        returns (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        )
+    {
+        uint256 nonce = 0;
+        permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
+        transferDetails = getTransferDetails(receiver, fromAmount);
+        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
     }
 }

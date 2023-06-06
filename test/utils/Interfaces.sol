@@ -26,3 +26,7 @@ interface IERC1155 {
         uint256 id
     ) external view returns (uint256);
 }
+
+interface IPermit2 {
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+}
