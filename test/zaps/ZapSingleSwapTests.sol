@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {Config, IERC20} from "./utils/Helper.sol";
-import {IERC1155, IPermit2} from "./utils/Interfaces.sol";
-import {PermitUtils} from "./utils/PermitUtils.sol";
-import {Y2KTraderJoeZap, ILBPair} from "../src/zaps/Y2KTraderJoeZap.sol";
-import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
-import {IBalancerVault} from "../src/interfaces/dexes/IBalancerVault.sol";
-import {IPermit2 as Permit2} from "../src/interfaces/IPermit2.sol";
+import {SwapHelper, IERC20} from "../utils/SwapUtils.sol";
+import {IERC1155, IPermit2} from "../utils/Interfaces.sol";
+import {PermitUtils} from "../utils/PermitUtils.sol";
+import {Y2KTraderJoeZap, ILBPair} from "../../src/zaps/Y2KTraderJoeZap.sol";
+import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
+import {IBalancerVault} from "../../src/interfaces/dexes/IBalancerVault.sol";
+import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
 
-contract ZapSwapSingleTest is Config {
+contract ZapSwapSingleTest is SwapHelper {
     /////////////////////////////////////////
     //          ZAP with APPROVE           //
     /////////////////////////////////////////

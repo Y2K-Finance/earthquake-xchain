@@ -2,12 +2,12 @@
 pragma solidity 0.8.18;
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {Config, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KChronosZap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KTraderJoeZap, Y2KCurveZap, Y2KGMXZap} from "./utils/Helper.sol";
-import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
-import {IErrors} from "../src/interfaces/IErrors.sol";
-import {IPermit2 as Permit2} from "../src/interfaces/IPermit2.sol";
+import {SwapHelper, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KChronosZap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KTraderJoeZap, Y2KCurveZap, Y2KGMXZap} from "../utils/SwapUtils.sol";
+import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
+import {IErrors} from "../../src/interfaces/IErrors.sol";
+import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
 
-contract ZapTests is Config {
+contract ZapTests is SwapHelper {
     /////////////////////////////////////////
     //               CONFIG                //
     /////////////////////////////////////////
@@ -24,51 +24,6 @@ contract ZapTests is Config {
             EPOCH_BEGIN
         );
         assertEq(block.timestamp, EPOCH_BEGIN - 1);
-    }
-
-    /////////////////////////////////////////
-    //              PERMIT                //
-    /////////////////////////////////////////
-    function testCorrectWitnessTypehash() public {
-        assertEq(
-            keccak256(
-                abi.encodePacked(
-                    _PERMIT_TRANSFER_TYPEHASH_STUB,
-                    WITNESS_TYPE_STRING
-                )
-            ),
-            FULL_EXAMPLE_WITNESS_TYPEHASH
-        );
-    }
-
-    function test_PermitTransfer() public {
-        vm.startPrank(permitSender);
-        uint256 fromAmount = 10e6;
-
-        deal(USDC_ADDRESS, permitSender, fromAmount);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), fromAmount);
-
-        (
-            ISignatureTransfer.PermitTransferFrom memory permit,
-            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
-            bytes memory sig
-        ) = setupPermitSwap(
-                permitReceiver,
-                permitReceiver,
-                fromAmount,
-                USDC_ADDRESS
-            );
-        vm.startPrank(permitReceiver);
-        Permit2(PERMIT_2).permitTransferFrom(
-            permit,
-            transferDetails,
-            permitSender,
-            sig
-        );
-
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitReceiver), fromAmount);
-        vm.stopPrank();
     }
 
     /////////////////////////////////////////
@@ -405,5 +360,50 @@ contract ZapTests is Config {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new Y2KChronosZap(CHRONOS_FACTORY, address(0));
         // TODO: AmountOutMin insufficient
+    }
+
+    /////////////////////////////////////////
+    //              PERMIT                //
+    /////////////////////////////////////////
+    function testCorrectWitnessTypehash() public {
+        assertEq(
+            keccak256(
+                abi.encodePacked(
+                    _PERMIT_TRANSFER_TYPEHASH_STUB,
+                    WITNESS_TYPE_STRING
+                )
+            ),
+            FULL_EXAMPLE_WITNESS_TYPEHASH
+        );
+    }
+
+    function test_PermitTransfer() public {
+        vm.startPrank(permitSender);
+        uint256 fromAmount = 10e6;
+
+        deal(USDC_ADDRESS, permitSender, fromAmount);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), fromAmount);
+
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                permitReceiver,
+                permitReceiver,
+                fromAmount,
+                USDC_ADDRESS
+            );
+        vm.startPrank(permitReceiver);
+        Permit2(PERMIT_2).permitTransferFrom(
+            permit,
+            transferDetails,
+            permitSender,
+            sig
+        );
+
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitSender), 0);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(permitReceiver), fromAmount);
+        vm.stopPrank();
     }
 }

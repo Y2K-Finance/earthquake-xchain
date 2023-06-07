@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
+import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {VaultController} from "./controllers/vaultController.sol";
 import {BridgeController} from "./controllers/bridgeController.sol";
 import {IStargateReceiver} from "../interfaces/bridges/IStargateReceiver.sol";
 import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
 
 contract ZapDest is
+    Ownable,
     VaultController,
     BridgeController,
     IStargateReceiver,
@@ -24,6 +26,11 @@ contract ZapDest is
         bytes1 orderType,
         address receiver,
         uint256 amount
+    );
+    event TrustedRemoteAdded(
+        uint16 chainId,
+        bytes trustedAddress,
+        address sender
     );
 
     constructor(
@@ -46,18 +53,27 @@ contract ZapDest is
     //////////////////////////////////////////////
     //                 PUBLIC                   //
     //////////////////////////////////////////////
+    function setTrustedRemoteLookup(
+        uint16 srcChainId,
+        bytes calldata trustedAddress
+    ) external onlyOwner {
+        trustedRemoteLookup[srcChainId] = trustedAddress;
+        emit TrustedRemoteAdded(srcChainId, trustedAddress, msg.sender);
+    }
+
     /// @param _chainId The remote chainId sending the tokens
     /// @param _srcAddress The remote Bridge address
     /// @param _nonce The message ordering nonce
     /// @param _token The token contract on the local chain
     /// @param amountLD The qty of local _token contract tokens
     /// @param _payload The bytes containing the toAddress
+    // TODO: Confirm correct checks happening for amountLD/ _token on srcChain
     function sgReceive(
         uint16 _chainId,
         bytes memory _srcAddress,
-        uint _nonce,
+        uint256 _nonce,
         address _token,
-        uint amountLD,
+        uint256 amountLD,
         bytes memory _payload
     ) external override {
         if (msg.sender != STARGATE_RELAYER) revert InvalidCaller();
@@ -76,6 +92,11 @@ contract ZapDest is
         emit ReceivedDeposit(_token, receiver, amountLD);
     }
 
+    // @notice LayerZero endpoint will invoke this function to deliver the message on the destination
+    // @param _srcChainId - the source endpoint identifier
+    // @param _srcAddress - the source sending contract address from the source chain
+    // @param _nonce - the ordered message nonce
+    // @param _payload - the signed payload is the UA bytes has encoded to be sent
     function lzReceive(
         uint16 _srcChainId,
         bytes memory _srcAddress,
