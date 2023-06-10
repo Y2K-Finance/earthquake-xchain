@@ -46,7 +46,7 @@ abstract contract BridgeController is IErrors {
         uint16 _sourceChainId
     ) internal {
         // TODO: change maxSlippage input for Celer to an input deconstructed
-        uint256 maxSlippage = 1;
+        uint256 maxSlippage = 1e6;
         if (_bridgeId == 0x01)
             _bridgeWithCeler(
                 _receiver,
@@ -81,8 +81,8 @@ abstract contract BridgeController is IErrors {
             _token,
             _amount,
             _dstChainId,
-            block.timestamp,
-            maxSlippage
+            uint64(block.timestamp),
+            uint32(maxSlippage)
         );
     }
 

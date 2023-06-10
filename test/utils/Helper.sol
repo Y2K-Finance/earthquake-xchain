@@ -23,6 +23,8 @@ abstract contract Helper is Test {
         0xb4fbD25A32d21299e356916044D6FbB078016c46;
     address constant EARTHQUAKE_VAULT_USDT =
         0x76b1803530A3608bD5F1e4a8bdaf3007d7d2D7FA;
+    address constant EARTHQUAKE_ADMIN =
+        0x225aCF1D32f0928A96E49E6110abA1fdf777C85f;
     address constant EARTHQUAKE_FACTORY =
         0x984E0EB8fB687aFa53fc8B33E12E04967560E092;
     address constant CAMELOT_FACTORY =
@@ -64,6 +66,7 @@ abstract contract Helper is Test {
     address constant EARTHQUAKE_CONTROLLER =
         0x225aCF1D32f0928A96E49E6110abA1fdf777C85f;
     uint256 constant EPOCH_ID = 1684713600;
+    uint256 constant MARKET_ID = 14;
     uint256 constant EPOCH_BEGIN = 1684281600;
     uint256 constant EPOCH_ID_USDT = 1684713600;
     uint256 constant EPOCH_BEGIN_USDT = 1684281600;
@@ -88,7 +91,7 @@ abstract contract Helper is Test {
         );
 
     ////////////// BRIDGE STATE VARS //////////////
-    address constant CELER_BRIDGE = 0x88DCDC47D2f83a99CF0000FDF667A468bB958a78;
+    address constant CELER_BRIDGE = 0x1619DE6B6B20eD217a58d00f37B9d47C7663feca;
     address constant CONNEXT_BRIDGE = address(0x123);
     address constant HYPHEN_BRIDGE = 0x2A5c2568b10A0E826BfA892Cf21BA7218310180b;
 }

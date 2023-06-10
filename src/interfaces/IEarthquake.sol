@@ -13,4 +13,10 @@ interface IEarthquake {
         address receiver,
         address owner
     ) external returns (uint256 shares);
+
+    // TODO: Remove
+    function balanceOf(
+        address account,
+        uint256 id
+    ) external view returns (uint256);
 }

@@ -6,9 +6,14 @@ import {VaultController} from "./controllers/vaultController.sol";
 import {BridgeController} from "./controllers/bridgeController.sol";
 import {IStargateReceiver} from "../interfaces/bridges/IStargateReceiver.sol";
 import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
+import {ERC1155Holder} from "lib/openzeppelin-contracts/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+
+import "forge-std/console.sol";
 
 contract ZapDest is
     Ownable,
+    ERC1155Holder,
     VaultController,
     BridgeController,
     IStargateReceiver,
@@ -57,6 +62,8 @@ contract ZapDest is
         uint16 srcChainId,
         bytes calldata trustedAddress
     ) external onlyOwner {
+        if (keccak256(trustedAddress) == keccak256(bytes("")))
+            revert InvalidInput();
         trustedRemoteLookup[srcChainId] = trustedAddress;
         emit TrustedRemoteAdded(srcChainId, trustedAddress, msg.sender);
     }
@@ -87,9 +94,10 @@ contract ZapDest is
             addressToIdToAmount[receiver][id] +
             amountLD;
 
-        _depositToVault(id, amountLD, receiver, _token);
+        // NOTE: The relayer holds the balance of all tokens
+        _depositToVault(id, amountLD, address(this), _token);
 
-        emit ReceivedDeposit(_token, receiver, amountLD);
+        emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
     // @notice LayerZero endpoint will invoke this function to deliver the message on the destination
@@ -109,6 +117,13 @@ contract ZapDest is
             keccak256(trustedRemoteLookup[_srcChainId])
         ) revert InvalidCaller();
 
+        // iterate the addrCounter - suggested by LZ
+        address fromAddress;
+        assembly {
+            fromAddress := mload(add(_srcAddress, 20))
+        }
+        addrCounter[fromAddress] += 1;
+
         // decode data for function
         (
             bytes1 funcSelector,
@@ -117,33 +132,49 @@ contract ZapDest is
             uint256 id
         ) = abi.decode(_payload, (bytes1, bytes1, address, uint256));
 
+        _withdraw(funcSelector, bridgeId, receiver, id, _srcChainId);
+    }
+
+    function withdraw(
+        bytes1 funcSelector,
+        bytes1 bridgeId,
+        uint256 id,
+        uint16 _srcChainId
+    ) external {
+        _withdraw(funcSelector, bridgeId, msg.sender, id, _srcChainId);
+    }
+
+    function _withdraw(
+        bytes1 funcSelector,
+        bytes1 bridgeId,
+        address receiver,
+        uint256 id,
+        uint16 _srcChainId
+    ) private {
         // check assets to withdraw
         uint256 assets = addressToIdToAmount[receiver][id];
         if (assets == 0) revert NullBalance();
         delete addressToIdToAmount[receiver][id];
-
-        // iterate the addrCounter - suggested by LZ
-        address fromAddress;
-        assembly {
-            fromAddress := mload(add(_srcAddress, 20))
-        }
-        addrCounter[fromAddress] += 1;
 
         // assets convert 1:1 when depositing meaning this should withdraw assets + rewards
         if (funcSelector == 0x01)
             _withdrawFromVault(id, assets, receiver);
             // withdraws assets to vault and bridges to source
         else if (funcSelector == 0x02) {
-            uint256 shares = _withdrawFromVault(id, assets, receiver);
+            uint256 amountReceived = _withdrawFromVault(
+                id,
+                assets,
+                address(this)
+            );
             _bridgeToSource(
                 bridgeId,
                 receiver,
                 EARTHQUAKE_VAULT.asset(),
-                shares,
+                amountReceived,
                 _srcChainId
             );
         } else revert InvalidInput();
-        // TODO: should we emit two different events for withdraw and bridge?
+
         emit ReceivedWithdrawal(funcSelector, receiver, assets);
     }
 }

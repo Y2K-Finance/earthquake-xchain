@@ -5,6 +5,19 @@ interface IEarthQuakeVault {
     function controller() external view returns (address);
 
     function idEpochBegin(uint256 epoch) external view returns (uint256);
+
+    function endEpoch(uint256 id) external;
+
+    function deposit(uint256 id, uint256 assets, address receiver) external;
+
+    function previewWithdraw(
+        uint256 id,
+        uint256 assets
+    ) external view returns (uint256 entitledAmount);
+}
+
+interface IEarthquakeController {
+    function triggerEndEpoch(uint256 marketIndex, uint256 epochEnd) external;
 }
 
 interface IERC20 {

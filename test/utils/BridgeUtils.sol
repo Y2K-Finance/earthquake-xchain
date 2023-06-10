@@ -17,6 +17,22 @@ contract BridgeHelper is Helper {
     uint256 mainnetFork;
     uint256 arbitrumFork;
 
+    event ReceivedDeposit(address token, address receiver, uint256 amount);
+    event ReceivedWithdrawal(
+        bytes1 orderType,
+        address receiver,
+        uint256 amount
+    );
+    event TrustedRemoteAdded(
+        uint16 chainId,
+        bytes trustedAddress,
+        address sender
+    );
+
+    /////////////////////////////////////////
+    //               CONFIG                //
+    /////////////////////////////////////////
+
     function setUp() public virtual {
         mainnetFork = vm.createSelectFork(MAINNET_RPC_URL, 17269532);
         arbitrumFork = vm.createFork(ARBITRUM_RPC_URL);
@@ -60,7 +76,8 @@ contract BridgeHelper is Helper {
             bytes memory srcAddress,
             uint64 nonce,
             uint256 fromAmount,
-            bytes memory payload
+            bytes memory payload,
+            uint256 chainId
         )
     {
         fromAmount = 1e18;
@@ -73,7 +90,9 @@ contract BridgeHelper is Helper {
         srcAddress = abi.encode(stargateRelayer); // Set to sender address
         nonce = 0;
         payload = abi.encode(receiver, id);
+        chainId = 1; // Set to 1 for mainnet
 
+        assertEq(IERC20(token).balanceOf(sender), 0);
         assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
     }
 }

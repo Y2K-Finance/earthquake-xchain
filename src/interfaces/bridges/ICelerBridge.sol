@@ -6,8 +6,8 @@ interface ICelerBridge {
         address _receiver,
         address _token,
         uint256 _amount,
-        uint16 _dstChainId,
-        uint256 _nonce,
-        uint256 _maxSlippage
+        uint64 _dstChainId,
+        uint64 _nonce,
+        uint32 _maxSlippage
     ) external;
 }
