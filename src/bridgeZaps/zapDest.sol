@@ -4,6 +4,10 @@ pragma solidity 0.8.18;
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {VaultController} from "./controllers/vaultController.sol";
 import {BridgeController} from "./controllers/bridgeController.sol";
+import {BytesLib} from "../libraries/BytesLib.sol";
+import {UniswapV3Swapper} from "./dexHelpers/uniswapV3.sol";
+import {UniswapV2Swapper} from "./dexHelpers/uniswapV2.sol";
+
 import {IStargateReceiver} from "../interfaces/bridges/IStargateReceiver.sol";
 import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
 import {ERC1155Holder} from "lib/openzeppelin-contracts/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -16,14 +20,18 @@ contract ZapDest is
     ERC1155Holder,
     VaultController,
     BridgeController,
+    UniswapV2Swapper,
+    UniswapV3Swapper,
     IStargateReceiver,
     ILayerZeroReceiver
 {
+    using BytesLib for bytes;
     address public immutable STARGATE_RELAYER;
     address public immutable LAYER_ZERO_ENDPOINT;
 
     mapping(address => uint256) public addrCounter;
     mapping(uint16 => bytes) public trustedRemoteLookup;
+    mapping(bytes1 => address) public idToExchange;
     mapping(address => mapping(uint256 => uint256)) public addressToIdToAmount;
 
     event ReceivedDeposit(address token, address receiver, uint256 amount);
@@ -37,6 +45,11 @@ contract ZapDest is
         bytes trustedAddress,
         address sender
     );
+    event TokenToHopBridgeSet(
+        address[] tokens,
+        address[] bridges,
+        address sender
+    );
 
     constructor(
         address stargateRelayer,
@@ -44,10 +57,13 @@ contract ZapDest is
         address _earthquakeVault,
         address celerBridge,
         address hyphenBridge,
-        address connextBridge
+        address uniswapV2Factory,
+        address uniswapV3Factory
     )
         VaultController(_earthquakeVault)
-        BridgeController(celerBridge, hyphenBridge, connextBridge)
+        BridgeController(celerBridge, hyphenBridge)
+        UniswapV2Swapper(uniswapV2Factory)
+        UniswapV3Swapper(uniswapV3Factory)
     {
         if (stargateRelayer == address(0)) revert InvalidInput();
         if (layerZeroEndpoint == address(0)) revert InvalidInput();
@@ -56,7 +72,7 @@ contract ZapDest is
     }
 
     //////////////////////////////////////////////
-    //                 PUBLIC                   //
+    //                 ADMIN                   //
     //////////////////////////////////////////////
     function setTrustedRemoteLookup(
         uint16 srcChainId,
@@ -68,6 +84,23 @@ contract ZapDest is
         emit TrustedRemoteAdded(srcChainId, trustedAddress, msg.sender);
     }
 
+    function setTokenToHopBridge(
+        address[] calldata _tokens,
+        address[] calldata _bridges
+    ) external onlyOwner {
+        if (_tokens.length != _bridges.length) revert InvalidInput();
+        for (uint256 i = 0; i < _tokens.length; ) {
+            tokenToHopBridge[_tokens[i]] = _bridges[i];
+            unchecked {
+                i++;
+            }
+        }
+        emit TokenToHopBridgeSet(_tokens, _bridges, msg.sender);
+    }
+
+    //////////////////////////////////////////////
+    //                 PUBLIC                   //
+    //////////////////////////////////////////////s
     /// @param _chainId The remote chainId sending the tokens
     /// @param _srcAddress The remote Bridge address
     /// @param _nonce The message ordering nonce
@@ -124,57 +157,111 @@ contract ZapDest is
         }
         addrCounter[fromAddress] += 1;
 
-        // decode data for function
+        // decode data for function - additional data needed to append?
         (
             bytes1 funcSelector,
             bytes1 bridgeId,
             address receiver,
             uint256 id
         ) = abi.decode(_payload, (bytes1, bytes1, address, uint256));
+        if (funcSelector == 0x00) revert InvalidInput();
 
-        _withdraw(funcSelector, bridgeId, receiver, id, _srcChainId);
+        _payload = _payload.length == 128
+            ? bytes("")
+            : _payload.sliceBytes(128, _payload.length - 128);
+
+        _withdraw(funcSelector, bridgeId, receiver, id, _srcChainId, _payload);
     }
 
     function withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
         uint256 id,
-        uint16 _srcChainId
+        uint16 _srcChainId,
+        bytes memory _withdrawPayload
     ) external {
-        _withdraw(funcSelector, bridgeId, msg.sender, id, _srcChainId);
+        _withdraw(
+            funcSelector,
+            bridgeId,
+            msg.sender,
+            id,
+            _srcChainId,
+            _withdrawPayload
+        );
     }
 
+    //////////////////////////////////////////////
+    //                 PRIVATE                  //
+    //////////////////////////////////////////////
     function _withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
         address receiver,
         uint256 id,
-        uint16 _srcChainId
+        uint16 _srcChainId,
+        bytes memory _payload
     ) private {
-        // check assets to withdraw
         uint256 assets = addressToIdToAmount[receiver][id];
         if (assets == 0) revert NullBalance();
         delete addressToIdToAmount[receiver][id];
 
-        // assets convert 1:1 when depositing meaning this should withdraw assets + rewards
-        if (funcSelector == 0x01)
-            _withdrawFromVault(id, assets, receiver);
-            // withdraws assets to vault and bridges to source
-        else if (funcSelector == 0x02) {
+        // NOTE: If !=0 0x00 && !0x01 && <4 then id is 0x02 or 0x03
+        if (funcSelector == 0x01) _withdrawFromVault(id, assets, receiver);
+        else if (uint8(funcSelector) < 4) {
             uint256 amountReceived = _withdrawFromVault(
                 id,
                 assets,
                 address(this)
             );
+            address asset = EARTHQUAKE_VAULT.asset();
+            // NOTE: Re-using amountReceived for bridge input
+            if (funcSelector == 0x03)
+                (asset, _payload, amountReceived) = _swapToBridgeToken(
+                    amountReceived,
+                    asset,
+                    _payload
+                );
             _bridgeToSource(
                 bridgeId,
                 receiver,
-                EARTHQUAKE_VAULT.asset(),
+                asset,
                 amountReceived,
-                _srcChainId
+                _srcChainId,
+                _payload
             );
         } else revert InvalidInput();
-
         emit ReceivedWithdrawal(funcSelector, receiver, assets);
+    }
+
+    function _swapToBridgeToken(
+        uint256 swapAmount,
+        address token,
+        bytes memory _payload
+    ) internal returns (address, bytes memory, uint256 amountOut) {
+        (
+            bytes1 swapId,
+            uint256 toAmountMin,
+            bytes1 dexId,
+            address toToken
+        ) = abi.decode(_payload, (bytes1, uint256, bytes1, address));
+
+        address[] memory path = new address[](2);
+        path[0] = token;
+        path[1] = toToken;
+
+        if (swapId == 0x01) {
+            // TODO: Dex id options should be Camelot (0x01) and Sushi (0x02)
+            bytes memory swapPayload = abi.encode(path, toAmountMin);
+            amountOut = _swapUniswapV2(dexId, swapAmount, swapPayload);
+            _payload.sliceBytes(33, _payload.length);
+        } else if (swapId == 0x02) {
+            // TODO: Swap on UniswapV3
+            uint24[] memory fee;
+            fee[0] = abi.decode(_payload, (uint24));
+            bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
+            amountOut = _swapUniswapV3(swapAmount, swapPayload);
+            _payload.sliceBytes(36, _payload.length);
+        } else revert InvalidInput();
+        return (toToken, _payload, amountOut);
     }
 }

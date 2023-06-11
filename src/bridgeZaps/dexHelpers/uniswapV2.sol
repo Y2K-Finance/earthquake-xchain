@@ -7,23 +7,26 @@ import {IUniswapPair} from "../../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
+import "forge-std/console.sol";
+
 contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
     bytes public constant V2_INIT_HASH =
-        hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
+        hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1";
     bytes public constant SUSHI_INIT_HASH =
         hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
     address public immutable UNISWAP_V2_FORK_FACTORY;
 
     constructor(address _uniswapV2Factory) {
         if (_uniswapV2Factory == address(0)) revert InvalidInput();
+        // TODO: Fork factory address should link to the original factory
         UNISWAP_V2_FORK_FACTORY = _uniswapV2Factory;
     }
 
     function _swapUniswapV2(
         bytes1 dexId,
         uint256 fromAmount,
-        bytes calldata payload
+        bytes memory payload
     ) internal returns (uint256 amountOut) {
         (address[] memory path, uint256 toAmountMin) = abi.decode(
             payload,
@@ -32,7 +35,6 @@ contract UniswapV2Swapper is IErrors {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
-        // TODO:
         bytes memory initCodeHash;
         if (dexId == 0x01) initCodeHash = V2_INIT_HASH;
         else if (dexId == 0x02) initCodeHash = SUSHI_INIT_HASH;

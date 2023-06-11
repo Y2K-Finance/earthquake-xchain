@@ -92,6 +92,9 @@ abstract contract Helper is Test {
 
     ////////////// BRIDGE STATE VARS //////////////
     address constant CELER_BRIDGE = 0x1619DE6B6B20eD217a58d00f37B9d47C7663feca;
-    address constant CONNEXT_BRIDGE = address(0x123);
-    address constant HYPHEN_BRIDGE = 0x2A5c2568b10A0E826BfA892Cf21BA7218310180b;
+    address constant HYPHEN_BRIDGE = 0x856cb5c3cBBe9e2E21293A644aA1f9363CEE11E8;
+    address constant HOP_USDC_BRIDGE =
+        0xe22D2beDb3Eca35E6397e0C6D62857094aA26F52;
+    address constant HOP_USDT_BRIDGE =
+        0xCB0a4177E0A60247C0ad18Be87f8eDfF6DD30283;
 }

@@ -48,7 +48,8 @@ contract BridgeHelper is Helper {
             EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
-            CONNEXT_BRIDGE
+            CAMELOT_FACTORY,
+            UNISWAP_V3_FACTORY
         );
 
         vm.label(address(0x01), "Sender");
@@ -58,13 +59,11 @@ contract BridgeHelper is Helper {
         vm.label(address(zapDest), "ZapDest");
         vm.label(CELER_BRIDGE, "CELR");
         vm.label(HYPHEN_BRIDGE, "HYPHEN");
-        vm.label(CONNEXT_BRIDGE, "CONNEXT");
     }
 
     /////////////////////////////////////////
     //         BRIDGE HELPERS              //
     /////////////////////////////////////////
-
     function setupSgReceiveDeposit(
         address sender,
         address receiver,

@@ -29,7 +29,7 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
 
     function _swapUniswapV3(
         uint256 fromAmount,
-        bytes calldata payload
+        bytes memory payload
     ) internal returns (uint256 amountOut) {
         (address[] memory path, uint24[] memory fee, uint256 toAmountMin) = abi
             .decode(payload, (address[], uint24[], uint256));
