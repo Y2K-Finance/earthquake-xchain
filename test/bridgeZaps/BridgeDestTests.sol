@@ -21,94 +21,21 @@ contract BridgeDestTests is BridgeHelper {
     }
 
     /////////////////////////////////////////
-    //               HELPERS                //
-    /////////////////////////////////////////
-    function _depositToVault(address _depositor) internal returns (uint256) {
-        address token = WETH_ADDRESS;
-        (
-            bytes memory srcAddress,
-            uint64 nonce,
-            uint256 amount,
-            bytes memory payload,
-            uint256 chainId
-        ) = setupSgReceiveDeposit(stargateRelayer, _depositor, token, EPOCH_ID);
-        vm.prank(stargateRelayer);
-        zapDest.sgReceive(
-            uint16(chainId),
-            srcAddress,
-            nonce,
-            token,
-            amount,
-            payload
-        );
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
-        assertGe(
-            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
-            1
-        );
-        return amount;
-    }
-
-    function _setupLzReceiveWithdraw(
-        address sender,
-        address receiver,
-        uint256 epochId
-    )
-        internal
-        pure
-        returns (bytes memory srcAddress, uint64 nonce, bytes memory payload)
-    {
-        srcAddress = abi.encode(sender);
-        nonce = 0;
-        bytes1 funcSelector = 0x01;
-        bytes1 bridgeId = 0x00;
-
-        payload = abi.encode(funcSelector, bridgeId, receiver, epochId);
-    }
-
-    function _setupSwapAndBridge(
-        address sender,
-        address receiver,
-        uint256 epochId,
-        bytes1 bridgeId,
-        bytes1 swapId,
-        bytes1 dexId,
-        address toToken
-    )
-        internal
-        pure
-        returns (bytes memory srcAddress, uint64 nonce, bytes memory payload)
-    {
-        srcAddress = abi.encode(sender);
-        nonce = 0;
-        bytes1 funcSelector = 0x03;
-        uint256 toAmountMin = (10e8 * 99) / 100;
-
-        payload = abi.encode(
-            funcSelector,
-            bridgeId,
-            receiver,
-            epochId,
-            swapId,
-            toAmountMin,
-            dexId,
-            toToken
-        );
-    }
-
-    /////////////////////////////////////////
     //               STATE VARS            //
     /////////////////////////////////////////
     function test_stateVars() public {
-        assertEq(zapDest.STARGATE_RELAYER(), stargateRelayer);
-        assertEq(zapDest.LAYER_ZERO_ENDPOINT(), layerZeroRelayer);
-        assertEq(address(zapDest.EARTHQUAKE_VAULT()), EARTHQUAKE_VAULT);
+        assertEq(zapDest.stargateRelayer(), stargateRelayer);
+        assertEq(zapDest.layerZeroRelayer(), layerZeroRelayer);
+        assertEq(address(zapDest.earthquakeVault()), EARTHQUAKE_VAULT);
         assertEq(address(zapDest.celerBridge()), CELER_BRIDGE);
         assertEq(address(zapDest.hyphenBridge()), HYPHEN_BRIDGE);
+        assertEq(zapDest.uniswapV2ForkFactory(), CAMELOT_FACTORY);
+        assertEq(zapDest.sushiFactory(), SUSHI_V2_FACTORY);
+        assertEq(zapDest.uniswapV3Factory(), UNISWAP_V3_FACTORY);
     }
 
     /////////////////////////////////////////
-    //              VAULT FUNCTIONS        //
+    //            STATE FUNCTIONS          //
     /////////////////////////////////////////
     function test_setTrustedRemoteLookup() public {
         uint16 srcChainId = 1;
@@ -121,7 +48,28 @@ contract BridgeDestTests is BridgeHelper {
         assertEq(zapDest.trustedRemoteLookup(srcChainId), trustedAddress);
     }
 
-    function test_depositWithSTG() public {
+    function test_setTokenToHopBridge() public {
+        address[] memory tokens = new address[](2);
+        tokens[0] = USDC_ADDRESS;
+        tokens[1] = USDT_ADDRESS;
+
+        address[] memory bridges = new address[](2);
+        bridges[0] = HOP_USDC_BRIDGE;
+        bridges[1] = HOP_USDT_BRIDGE;
+
+        vm.expectEmit(true, true, true, false);
+        emit TokenToHopBridgeSet(tokens, bridges, address(this));
+        zapDest.setTokenToHopBridge(tokens, bridges);
+
+        assertEq(zapDest.tokenToHopBridge(USDC_ADDRESS), HOP_USDC_BRIDGE);
+        assertEq(zapDest.tokenToHopBridge(USDT_ADDRESS), HOP_USDT_BRIDGE);
+    }
+
+    /////////////////////////////////////////
+    //        VAULT PUBLIC FUNCTIONS        //
+    /////////////////////////////////////////
+
+    function test_depositWithSgReceive() public {
         address token = WETH_ADDRESS;
         (
             bytes memory srcAddress,
@@ -151,7 +99,7 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    function test_withdrawWithLZ() public {
+    function test_withdrawWithLzReceive() public {
         // Deposits to the valut as the sender
         uint256 amount = _depositToVault(sender);
         uint16 srcChainId = 1;
@@ -240,7 +188,7 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    // TODO: Logic working - test after swap or with another deposit asset
+    // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
     function test_withdrawAndBridgeWithHyphen() private {
         // Deposits to the valut as the sender
         _depositToVault(sender);
@@ -267,7 +215,7 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    // TODO: Need to test with after a swap or with a different deposit asset
+    // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
     function test_withdrawAndBridgeWithHop() private {
         // Deposits to the valut as the sender
         _depositToVault(sender);
@@ -297,7 +245,11 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     //       BRIDGE & SWAP FUNCTIONS       //
     /////////////////////////////////////////
-    function test_withdrawSwapCamelotBridgeCeler() public {
+
+    /////////////////////////////////////////
+    //                HYPHEN                //
+    /////////////////////////////////////////
+    function test_withdrawSwapCamelotBridgeHyphen() public {
         // Deposits to the valut as the sender
         uint256 amount = _depositToVault(sender);
         uint16 srcChainId = 1;
@@ -317,7 +269,7 @@ contract BridgeDestTests is BridgeHelper {
             bytes memory srcAddress,
             uint64 nonce,
             bytes memory payload
-        ) = _setupSwapAndBridge(
+        ) = _setupSwapV2AndBridge(
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
@@ -341,7 +293,94 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    function test_withdrawSwapSushiBridgeHop() private {
+    function test_withdrawSwapSushiBridgeHyphen() public {
+        // Deposits to the valut as the sender
+        uint256 amount = _depositToVault(sender);
+        uint16 srcChainId = 1;
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 swapId = 0x01;
+        bytes1 bridgeId = 0x02;
+        bytes1 dexId = 0x02;
+        address toToken = USDC_ADDRESS;
+
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory payload
+        ) = _setupSwapV2AndBridge(
+                layerZeroRelayer,
+                sender,
+                EPOCH_ID,
+                bridgeId,
+                swapId,
+                dexId,
+                toToken
+            );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectEmit(true, true, true, false);
+        emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
+        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
+        assertEq(
+            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
+            0
+        );
+    }
+
+    function test_withdrawSwapUniV3BridgeHyphen() public {
+        // Deposits to the valut as the sender
+        uint256 amount = _depositToVault(sender);
+        uint16 srcChainId = 1;
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 swapId = 0x02;
+        bytes1 bridgeId = 0x02;
+        bytes1 dexId = 0x02;
+        address toToken = USDC_ADDRESS;
+
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory payload
+        ) = _setupSwapV3AndBridge(
+                layerZeroRelayer,
+                sender,
+                EPOCH_ID,
+                bridgeId,
+                swapId,
+                dexId,
+                toToken
+            );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectEmit(true, true, true, false);
+        emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
+        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
+        assertEq(
+            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
+            0
+        );
+    }
+
+    /////////////////////////////////////////
+    //                HOP                  //
+    /////////////////////////////////////////
+    function test_withdrawSwapCamelotBridgeHop() public {
         // Deposits to the valut as the sender
         uint256 amount = _depositToVault(sender);
         uint16 srcChainId = 1;
@@ -351,23 +390,120 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set the hop bridge
+        address toToken = USDC_ADDRESS;
         address[] memory tokens = new address[](1);
         address[] memory bridges = new address[](1);
-        tokens[0] = USDC_ADDRESS;
+        tokens[0] = toToken;
         bridges[0] = HOP_USDC_BRIDGE;
         zapDest.setTokenToHopBridge(tokens, bridges);
 
         // Calculate amount received in withdraw
         vm.roll(block.timestamp);
         bytes1 swapId = 0x01;
-        bytes1 bridgeId = 0x02;
-        bytes1 dexId = 0x02; // 0x02 for Sushi
-        address toToken = USDC_ADDRESS;
+        bytes1 bridgeId = 0x03;
+        bytes1 dexId = 0x01; // 0x02 for Sushi
         (
             bytes memory srcAddress,
             uint64 nonce,
             bytes memory payload
-        ) = _setupSwapAndBridge(
+        ) = _setupSwapV2AndBridge(
+                layerZeroRelayer,
+                sender,
+                EPOCH_ID,
+                bridgeId,
+                swapId,
+                dexId,
+                toToken
+            );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectEmit(true, true, true, false);
+        emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
+        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
+        assertEq(
+            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
+            0
+        );
+    }
+
+    // NOTE: Tests with hop using USDT bridge instead of USDC
+    function test_withdrawSwapSushiBridgeHop() public {
+        // Deposits to the valut as the sender
+        uint256 amount = _depositToVault(sender);
+        uint16 srcChainId = 1;
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Set the hop bridge
+        address toToken = USDT_ADDRESS;
+        address[] memory tokens = new address[](1);
+        address[] memory bridges = new address[](1);
+        tokens[0] = toToken;
+        bridges[0] = HOP_USDT_BRIDGE;
+        zapDest.setTokenToHopBridge(tokens, bridges);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 swapId = 0x01;
+        bytes1 bridgeId = 0x03;
+        bytes1 dexId = 0x02; // 0x02 for Sushi
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory payload
+        ) = _setupSwapV2AndBridge(
+                layerZeroRelayer,
+                sender,
+                EPOCH_ID,
+                bridgeId,
+                swapId,
+                dexId,
+                toToken
+            );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectEmit(true, true, true, false);
+        emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
+        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
+        assertEq(
+            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
+            0
+        );
+    }
+
+    function test_withdrawSwapUniV3BridgeHop() public {
+        // Deposits to the valut as the sender
+        uint256 amount = _depositToVault(sender);
+        uint16 srcChainId = 1;
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Set the hop bridge
+        address toToken = USDC_ADDRESS;
+        address[] memory tokens = new address[](1);
+        address[] memory bridges = new address[](1);
+        tokens[0] = toToken;
+        bridges[0] = HOP_USDC_BRIDGE;
+        zapDest.setTokenToHopBridge(tokens, bridges);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 swapId = 0x02;
+        bytes1 bridgeId = 0x03;
+        bytes1 dexId = 0x02; // 0x02 for Sushi
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory payload
+        ) = _setupSwapV3AndBridge(
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
@@ -401,6 +537,7 @@ contract BridgeDestTests is BridgeHelper {
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY
         );
 
@@ -412,6 +549,7 @@ contract BridgeDestTests is BridgeHelper {
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY
         );
 
@@ -423,6 +561,7 @@ contract BridgeDestTests is BridgeHelper {
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY
         );
 
@@ -434,6 +573,7 @@ contract BridgeDestTests is BridgeHelper {
             address(0),
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY
         );
 
@@ -445,6 +585,7 @@ contract BridgeDestTests is BridgeHelper {
             CELER_BRIDGE,
             address(0),
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY
         );
 
@@ -455,6 +596,19 @@ contract BridgeDestTests is BridgeHelper {
             EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
+            address(0),
+            SUSHI_V2_FACTORY,
+            UNISWAP_V3_FACTORY
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new ZapDest(
+            stargateRelayer,
+            layerZeroRelayer,
+            EARTHQUAKE_VAULT,
+            CELER_BRIDGE,
+            HYPHEN_BRIDGE,
+            CAMELOT_FACTORY,
             address(0),
             UNISWAP_V3_FACTORY
         );
@@ -467,6 +621,7 @@ contract BridgeDestTests is BridgeHelper {
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
             address(0)
         );
     }
@@ -479,6 +634,18 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
     }
 
+    function testErrors_setTokenHop() public {
+        address[] memory tokens = new address[](1);
+        tokens[0] = USDC_ADDRESS;
+
+        address[] memory bridges = new address[](2);
+        bridges[0] = HOP_USDC_BRIDGE;
+        bridges[1] = HOP_USDT_BRIDGE;
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        zapDest.setTokenToHopBridge(tokens, bridges);
+    }
+
     function testErrors_sgReceive() public {
         uint16 chainId = 0;
         bytes memory data = "";
@@ -489,17 +656,195 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
     }
 
-    function testErrors_lzReceive() public {
-        uint16 srcChainId = 0;
-        bytes memory srcAddress = "";
+    function testErrors_lzReceiveInvalidCallerSender() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(sender);
         uint64 nonce = 0;
         bytes memory payload = "";
 
         vm.expectRevert(IErrors.InvalidCaller.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
 
-        // TODO: Invalid Caller for keccak256
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidCaller.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
+        // Setup the payload
+        bytes1 funcSelector = 0x00;
+        bytes1 bridgeId = 0x00;
+        payload = abi.encode(funcSelector, bridgeId, sender, EPOCH_ID);
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+
         // TODO: Null Balance
         // TODO: InvalidInput
+    }
+
+    function testErrors_lzReceiveInvalidCallerMapping() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(sender);
+        uint64 nonce = 0;
+        bytes memory payload = "";
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidCaller.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_lzReceiveInvalidFuncSelec() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint64 nonce = 0;
+
+        // Encode data
+        bytes1 funcSelector = 0x00;
+        bytes1 bridgeId = 0x00;
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID
+        );
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidFunctionId.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_withdrawNullBalance() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint64 nonce = 0;
+
+        // Encode data
+        bytes1 funcSelector = 0x01;
+        bytes1 bridgeId = 0x00;
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID
+        );
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.NullBalance.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_withdrawInvalidFuncSelec() public {
+        // Deposits to the valut as the sender
+        uint16 srcChainId = 1;
+        uint64 nonce = 0;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint256 amount = _depositToVault(sender);
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 funcSelector = 0x04;
+        bytes1 bridgeId = 0x02;
+        bytes1 swapId = 0x01;
+        bytes1 dexId = 0x01;
+        address toToken = USDC_ADDRESS;
+
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID,
+            swapId,
+            (amount * 9999) / 10_000,
+            dexId,
+            toToken,
+            500
+        );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidFunctionId.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_withdrawInvalidSwapId() public {
+        // Deposits to the valut as the sender
+        uint16 srcChainId = 1;
+        uint64 nonce = 0;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint256 amount = _depositToVault(sender);
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 funcSelector = 0x03;
+        bytes1 bridgeId = 0x02;
+        bytes1 swapId = 0x00;
+        bytes1 dexId = 0x01;
+        address toToken = USDC_ADDRESS;
+
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID,
+            swapId,
+            (amount * 9999) / 10_000,
+            dexId,
+            toToken,
+            500
+        );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidSwapId.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_withdrawInvalidBridgeId() public {
+        // Deposits to the valut as the sender
+        uint16 srcChainId = 1;
+        uint64 nonce = 0;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint256 amount = _depositToVault(sender);
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 funcSelector = 0x02;
+        bytes1 bridgeId = 0x04;
+        bytes1 swapId = 0x00;
+        bytes1 dexId = 0x01;
+        address toToken = USDC_ADDRESS;
+
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID,
+            swapId,
+            (amount * 9999) / 10_000,
+            dexId,
+            toToken,
+            500
+        );
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidBridgeId.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 }

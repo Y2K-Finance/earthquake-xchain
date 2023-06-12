@@ -6,10 +6,10 @@ import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IBalancerVault} from "../interfaces/dexes/IBalancerVault.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
+import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
-contract Y2KCallDataZap is IErrors {
+contract Y2KCallDataZap is IErrors, Ownable {
     using SafeTransferLib for ERC20;
-    address owner;
     address public immutable EARTHQUAKE_VAULT;
 
     mapping(address => bool) public whitelistedAddress;
@@ -18,7 +18,6 @@ contract Y2KCallDataZap is IErrors {
     constructor(address _earthquakeVault) {
         if (_earthquakeVault == address(0)) revert InvalidInput();
         EARTHQUAKE_VAULT = _earthquakeVault;
-        owner = msg.sender;
     }
 
     function zapIn(
@@ -42,8 +41,7 @@ contract Y2KCallDataZap is IErrors {
         IEarthquake(EARTHQUAKE_VAULT).deposit(vaultId, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 
-    function whitelistAddress(address routerAddress) external {
-        if (msg.sender != owner) revert OnlyOwner();
+    function whitelistAddress(address routerAddress) external onlyOwner {
         whitelistedAddress[routerAddress] = !whitelistedAddress[routerAddress];
     }
 

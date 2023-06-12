@@ -19,9 +19,17 @@ contract ZapFrom is IErrors, SwapController {
     constructor(
         address stargateRouter,
         address uniswapV2Factory,
+        address sushiSwapFactory,
         address uniswapV3Factory,
         address balancerVault
-    ) SwapController(uniswapV2Factory, uniswapV3Factory, balancerVault) {
+    )
+        SwapController(
+            uniswapV2Factory,
+            sushiSwapFactory,
+            uniswapV3Factory,
+            balancerVault
+        )
+    {
         if (stargateRouter == address(0)) revert InvalidInput();
         STARGATE_ROUTER = stargateRouter;
     }

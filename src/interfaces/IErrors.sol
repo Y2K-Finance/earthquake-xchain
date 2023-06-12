@@ -2,12 +2,14 @@
 pragma solidity 0.8.18;
 
 interface IErrors {
+    // TODO: Either invalidMintOut or InvalidOutput
     error InvalidMinOut(uint256 minOut);
     error InvalidInput();
     error InvalidOutput();
-    error FailedApproval();
     error FailedCall(bytes data);
-    error OnlyOwner();
     error InvalidCaller();
+    error InvalidFunctionId();
+    error InvalidSwapId();
+    error InvalidBridgeId();
     error NullBalance();
 }

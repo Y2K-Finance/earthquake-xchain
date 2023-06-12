@@ -18,9 +18,13 @@ abstract contract SwapController is
 
     constructor(
         address uniswapV2Factory,
+        address sushiFactory,
         address uniswapV3Factory,
         address balancerVault
-    ) UniswapV2Swapper(uniswapV2Factory) UniswapV3Swapper((uniswapV3Factory)) {
+    )
+        UniswapV2Swapper(uniswapV2Factory, sushiFactory)
+        UniswapV3Swapper((uniswapV3Factory))
+    {
         BALANCER_VAULT = balancerVault;
     }
 

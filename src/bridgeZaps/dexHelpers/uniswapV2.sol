@@ -15,12 +15,14 @@ contract UniswapV2Swapper is IErrors {
         hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1";
     bytes public constant SUSHI_INIT_HASH =
         hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
-    address public immutable UNISWAP_V2_FORK_FACTORY;
+    address public immutable uniswapV2ForkFactory;
+    address public immutable sushiFactory;
 
-    constructor(address _uniswapV2Factory) {
+    constructor(address _uniswapV2Factory, address _sushiFactory) {
         if (_uniswapV2Factory == address(0)) revert InvalidInput();
-        // TODO: Fork factory address should link to the original factory
-        UNISWAP_V2_FORK_FACTORY = _uniswapV2Factory;
+        if (_sushiFactory == address(0)) revert InvalidInput();
+        uniswapV2ForkFactory = _uniswapV2Factory;
+        sushiFactory = _sushiFactory;
     }
 
     function _swapUniswapV2(
@@ -36,8 +38,14 @@ contract UniswapV2Swapper is IErrors {
         address[] memory pairs = new address[](path.length - 1);
 
         bytes memory initCodeHash;
-        if (dexId == 0x01) initCodeHash = V2_INIT_HASH;
-        else if (dexId == 0x02) initCodeHash = SUSHI_INIT_HASH;
+        address factory;
+        if (dexId == 0x01) {
+            initCodeHash = V2_INIT_HASH;
+            factory = uniswapV2ForkFactory;
+        } else if (dexId == 0x02) {
+            initCodeHash = SUSHI_INIT_HASH;
+            factory = sushiFactory;
+        }
 
         // TODO: More efficent way to use this amount?
         uint256 cachedFrom = fromAmount;
@@ -47,7 +55,7 @@ contract UniswapV2Swapper is IErrors {
                 address fromToken = path[i];
                 address toToken = path[i + 1];
 
-                pairs[i] = _getPair(fromToken, toToken, initCodeHash);
+                pairs[i] = _getPair(fromToken, toToken, initCodeHash, factory);
                 (uint256 reserveA, uint256 reserveB, ) = IUniswapPair(pairs[i])
                     .getReserves();
 
@@ -113,8 +121,9 @@ contract UniswapV2Swapper is IErrors {
     function _getPair(
         address tokenA,
         address tokenB,
-        bytes memory initCodeHash
-    ) internal view returns (address pair) {
+        bytes memory initCodeHash,
+        address factory
+    ) internal pure returns (address pair) {
         if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
         pair = address(
             uint160(
@@ -122,7 +131,7 @@ contract UniswapV2Swapper is IErrors {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            UNISWAP_V2_FORK_FACTORY,
+                            factory,
                             keccak256(abi.encodePacked(tokenA, tokenB)),
                             initCodeHash
                         )

@@ -8,11 +8,11 @@ import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 
 abstract contract VaultController is IErrors {
     using SafeTransferLib for ERC20;
-    IEarthquake public immutable EARTHQUAKE_VAULT;
+    IEarthquake public immutable earthquakeVault;
 
     constructor(address _earthquakeVault) {
         if (_earthquakeVault == address(0)) revert InvalidInput();
-        EARTHQUAKE_VAULT = IEarthquake(_earthquakeVault);
+        earthquakeVault = IEarthquake(_earthquakeVault);
     }
 
     function _depositToVault(
@@ -21,8 +21,8 @@ abstract contract VaultController is IErrors {
         address receiver,
         address inputToken
     ) internal {
-        ERC20(inputToken).safeApprove(address(EARTHQUAKE_VAULT), amount);
-        EARTHQUAKE_VAULT.deposit(id, amount, receiver);
+        ERC20(inputToken).safeApprove(address(earthquakeVault), amount);
+        earthquakeVault.deposit(id, amount, receiver);
     }
 
     function _withdrawFromVault(
@@ -30,6 +30,6 @@ abstract contract VaultController is IErrors {
         uint256 assets,
         address receiver
     ) internal returns (uint256) {
-        return EARTHQUAKE_VAULT.withdraw(id, assets, receiver, address(this));
+        return earthquakeVault.withdraw(id, assets, receiver, address(this));
     }
 }

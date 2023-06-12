@@ -8,6 +8,8 @@ import {IHyphenBridge} from "../../interfaces/bridges/IHyphenBridge.sol";
 import {IHopBridge} from "../../interfaces/bridges/IHopBridge.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
+import "forge-std/console.sol";
+
 abstract contract BridgeController is IErrors {
     using SafeTransferLib for ERC20;
     ICelerBridge public immutable celerBridge;
@@ -38,6 +40,7 @@ abstract contract BridgeController is IErrors {
     ) internal {
         if (_bridgeId == 0x01) {
             uint256 maxSlippage = abi.decode(_withdrawPayload, (uint256));
+            console.logUint(maxSlippage);
             _bridgeWithCeler(
                 _receiver,
                 _token,
@@ -60,7 +63,7 @@ abstract contract BridgeController is IErrors {
                 maxSlippage,
                 bonderFee
             );
-        } else revert InvalidInput();
+        } else revert InvalidBridgeId();
     }
 
     function _bridgeWithCeler(
@@ -97,6 +100,7 @@ abstract contract BridgeController is IErrors {
         );
     }
 
+    // maxSlippage input of 100 would be 1% slippage
     function _bridgeWithHop(
         address _receiver,
         address _token,
@@ -105,9 +109,8 @@ abstract contract BridgeController is IErrors {
         uint256 maxSlippage,
         uint256 bonderFee
     ) internal {
-        uint256 amountOutMin = (_amount * (1e6 - maxSlippage)) / 1e6; // TODO: Review
+        uint256 amountOutMin = (_amount * (10000 - maxSlippage)) / 10000;
         uint256 deadline = block.timestamp + 2700;
-
         address bridgeAddress = tokenToHopBridge[_token];
         ERC20(_token).safeApprove(bridgeAddress, _amount);
 
@@ -118,7 +121,7 @@ abstract contract BridgeController is IErrors {
             bonderFee,
             amountOutMin,
             deadline,
-            (amountOutMin * 998) / 1000,
+            (amountOutMin * 998) / 1000, // Adding extra slippage for cross-chain tx
             deadline
         );
     }

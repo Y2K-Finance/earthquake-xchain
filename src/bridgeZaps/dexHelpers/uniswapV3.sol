@@ -12,19 +12,19 @@ import {IErrors} from "../../interfaces/IErrors.sol";
 contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
     using SafeTransferLib for ERC20;
     using BytesLib for bytes;
-    address public immutable UNISWAP_V3_FACTORY;
+    address public immutable uniswapV3Factory;
     /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
-    uint160 internal constant MIN_SQRT_RATIO = 4295128740;
+    uint160 internal constant _MIN_SQRT_RATIO = 4295128740;
 
     /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
-    uint160 internal constant MAX_SQRT_RATIO =
+    uint160 internal constant _MAX_SQRT_RATIO =
         1461446703485210103287273052203988822378723970341;
-    bytes32 internal constant POOL_INIT_CODE_HASH =
+    bytes32 internal constant _POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
     constructor(address _uniswapV3Factory) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
-        UNISWAP_V3_FACTORY = _uniswapV3Factory;
+        uniswapV3Factory = _uniswapV3Factory;
     }
 
     function _swapUniswapV3(
@@ -92,7 +92,7 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
                     address(this),
                     zeroForOne,
                     int256(fromAmount),
-                    MIN_SQRT_RATIO,
+                    _MIN_SQRT_RATIO,
                     abi.encodePacked(tokenIn, fee, tokenOut)
                 );
             return uint256(-amountOut);
@@ -103,7 +103,7 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
                     address(this),
                     zeroForOne,
                     int256(fromAmount),
-                    MAX_SQRT_RATIO,
+                    _MAX_SQRT_RATIO,
                     abi.encodePacked(tokenIn, fee, tokenOut)
                 );
             return uint256(-amountOut);
@@ -122,9 +122,9 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            UNISWAP_V3_FACTORY,
+                            uniswapV3Factory,
                             keccak256(abi.encode(tokenA, tokenB, fee)),
-                            POOL_INIT_CODE_HASH
+                            _POOL_INIT_CODE_HASH
                         )
                     )
                 )

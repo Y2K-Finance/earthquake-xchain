@@ -13,8 +13,6 @@ import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
 import {ERC1155Holder} from "lib/openzeppelin-contracts/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import "forge-std/console.sol";
-
 contract ZapDest is
     Ownable,
     ERC1155Holder,
@@ -26,8 +24,8 @@ contract ZapDest is
     ILayerZeroReceiver
 {
     using BytesLib for bytes;
-    address public immutable STARGATE_RELAYER;
-    address public immutable LAYER_ZERO_ENDPOINT;
+    address public immutable stargateRelayer;
+    address public immutable layerZeroRelayer;
 
     mapping(address => uint256) public addrCounter;
     mapping(uint16 => bytes) public trustedRemoteLookup;
@@ -52,23 +50,24 @@ contract ZapDest is
     );
 
     constructor(
-        address stargateRelayer,
-        address layerZeroEndpoint,
+        address _stargateRelayer,
+        address _layerZeroRelayer,
         address _earthquakeVault,
         address celerBridge,
         address hyphenBridge,
         address uniswapV2Factory,
+        address sushiSwapFactory,
         address uniswapV3Factory
     )
         VaultController(_earthquakeVault)
         BridgeController(celerBridge, hyphenBridge)
-        UniswapV2Swapper(uniswapV2Factory)
+        UniswapV2Swapper(uniswapV2Factory, sushiSwapFactory)
         UniswapV3Swapper(uniswapV3Factory)
     {
-        if (stargateRelayer == address(0)) revert InvalidInput();
-        if (layerZeroEndpoint == address(0)) revert InvalidInput();
-        STARGATE_RELAYER = stargateRelayer;
-        LAYER_ZERO_ENDPOINT = layerZeroEndpoint;
+        if (_stargateRelayer == address(0)) revert InvalidInput();
+        if (_layerZeroRelayer == address(0)) revert InvalidInput();
+        stargateRelayer = _stargateRelayer;
+        layerZeroRelayer = _layerZeroRelayer;
     }
 
     //////////////////////////////////////////////
@@ -116,7 +115,7 @@ contract ZapDest is
         uint256 amountLD,
         bytes memory _payload
     ) external override {
-        if (msg.sender != STARGATE_RELAYER) revert InvalidCaller();
+        if (msg.sender != stargateRelayer) revert InvalidCaller();
         (address receiver, uint256 id) = abi.decode(
             _payload,
             (address, uint256)
@@ -144,7 +143,7 @@ contract ZapDest is
         uint64 _nonce,
         bytes memory _payload
     ) external override {
-        if (msg.sender != LAYER_ZERO_ENDPOINT) revert InvalidCaller();
+        if (msg.sender != layerZeroRelayer) revert InvalidCaller();
         if (
             keccak256(_srcAddress) !=
             keccak256(trustedRemoteLookup[_srcChainId])
@@ -164,7 +163,7 @@ contract ZapDest is
             address receiver,
             uint256 id
         ) = abi.decode(_payload, (bytes1, bytes1, address, uint256));
-        if (funcSelector == 0x00) revert InvalidInput();
+        if (funcSelector == 0x00) revert InvalidFunctionId();
 
         _payload = _payload.length == 128
             ? bytes("")
@@ -213,7 +212,7 @@ contract ZapDest is
                 assets,
                 address(this)
             );
-            address asset = EARTHQUAKE_VAULT.asset();
+            address asset = earthquakeVault.asset();
             // NOTE: Re-using amountReceived for bridge input
             if (funcSelector == 0x03)
                 (asset, _payload, amountReceived) = _swapToBridgeToken(
@@ -229,7 +228,7 @@ contract ZapDest is
                 _srcChainId,
                 _payload
             );
-        } else revert InvalidInput();
+        } else revert InvalidFunctionId();
         emit ReceivedWithdrawal(funcSelector, receiver, assets);
     }
 
@@ -250,18 +249,19 @@ contract ZapDest is
         path[1] = toToken;
 
         if (swapId == 0x01) {
-            // TODO: Dex id options should be Camelot (0x01) and Sushi (0x02)
             bytes memory swapPayload = abi.encode(path, toAmountMin);
             amountOut = _swapUniswapV2(dexId, swapAmount, swapPayload);
-            _payload.sliceBytes(33, _payload.length);
+            _payload = _payload.sliceBytes(128, _payload.length - 128);
         } else if (swapId == 0x02) {
-            // TODO: Swap on UniswapV3
-            uint24[] memory fee;
-            fee[0] = abi.decode(_payload, (uint24));
+            uint24[] memory fee = new uint24[](1);
+            (, , , , fee[0]) = abi.decode(
+                _payload,
+                (bytes1, uint256, bytes1, address, uint24)
+            );
             bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
             amountOut = _swapUniswapV3(swapAmount, swapPayload);
-            _payload.sliceBytes(36, _payload.length);
-        } else revert InvalidInput();
+            _payload = _payload.sliceBytes(160, _payload.length - 160);
+        } else revert InvalidSwapId();
         return (toToken, _payload, amountOut);
     }
 }
