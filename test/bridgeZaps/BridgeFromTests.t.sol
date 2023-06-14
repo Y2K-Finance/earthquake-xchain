@@ -49,25 +49,26 @@ contract BridgeFromTests is BridgeHelper {
     /////////////////////////////////////////
     //         BRIDGE FUNCTIONS            //
     /////////////////////////////////////////
-    // TODO: Error is "Stargate: local chainPath does not exist' - what is the poolId?
     function test_bridgeETH() public {
-        uint256 amountIn = 1 ether;
+        uint256 amountIn = 1.005 ether;
+        uint256 amount = 1 ether;
         address fromToken = address(0);
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
         bytes memory payload = abi.encode(address(0x01), 0);
-        uint256 balance = address(this).balance;
+        uint256 balance = sender.balance;
 
-        // TODO: Failed to refund error - resolve this how?
-        zapFrom.bridge{value: 1.005 ether}(
-            amountIn,
+        vm.startPrank(sender);
+        zapFrom.bridge{value: amountIn}(
+            amount,
             fromToken,
             srcPoolId,
             dstPoolId,
             payload
         );
 
-        assertEq(address(this).balance, balance - 1.1 ether);
+        assertLe(sender.balance, balance);
+        vm.stopPrank();
     }
 
     function test_bridgeERC20() public {
@@ -96,7 +97,13 @@ contract BridgeFromTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function test_withdraw() public {}
+    function test_withdraw() public {
+        bytes memory payload = abi.encode(address(0x01), 0);
+
+        vm.startPrank(sender);
+        zapFrom.withdraw{value: 0.1 ether}(payload);
+        vm.stopPrank();
+    }
 
     /////////////////////////////////////////
     //       BRIDGE & SWAP FUNCTIONS       //

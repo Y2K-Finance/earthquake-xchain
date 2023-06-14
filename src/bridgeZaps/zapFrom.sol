@@ -50,7 +50,7 @@ contract ZapFrom is IErrors, SwapController {
         layerZeroRouter = _layerZeroRouterLocal;
         layerZeroRemoteAndLocal = abi.encodePacked(
             _layerZeroRouterRemote,
-            _layerZeroRouterLocal
+            address(this)
         );
         y2kArbRouter = _y2kArbRouter;
     }
@@ -136,7 +136,7 @@ contract ZapFrom is IErrors, SwapController {
     function withdraw(bytes memory payload) external payable {
         if (msg.value == 0) revert InvalidInput();
         ILayerZeroRouter(layerZeroRouter).send{value: msg.value}(
-            uint16(ARBITRUM_CHAIN_ID), // TODO: destination LayerZero chainId
+            uint16(ARBITRUM_CHAIN_ID), // destination LayerZero chainId
             layerZeroRemoteAndLocal, // send to this address on the destination
             payload, // bytes payload
             payable(msg.sender), // refund address
