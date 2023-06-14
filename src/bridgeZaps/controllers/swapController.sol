@@ -7,25 +7,28 @@ import {UniswapV2Swapper} from "../dexHelpers/uniswapV2.sol";
 import {UniswapV3Swapper} from "../dexHelpers/uniswapV3.sol";
 import {CurveSwapper} from "../dexHelpers/curve.sol";
 
+import "forge-std/console.sol";
+
 abstract contract SwapController is
     UniswapV2Swapper,
     UniswapV3Swapper,
     CurveSwapper
 {
     using SafeTransferLib for ERC20;
-    address public immutable BALANCER_VAULT;
+    address public immutable balancerVault;
     error FailedSwap();
 
     constructor(
-        address uniswapV2Factory,
-        address sushiFactory,
-        address uniswapV3Factory,
-        address balancerVault
+        address _uniswapV2Factory,
+        address _sushiFactory,
+        address _uniswapV3Factory,
+        address _balancerVault
     )
-        UniswapV2Swapper(uniswapV2Factory, sushiFactory)
-        UniswapV3Swapper((uniswapV3Factory))
+        UniswapV2Swapper(_uniswapV2Factory, _sushiFactory)
+        UniswapV3Swapper(_uniswapV3Factory)
     {
-        BALANCER_VAULT = balancerVault;
+        if (_balancerVault == address(0)) revert InvalidInput();
+        balancerVault = _balancerVault;
     }
 
     function _swap(
@@ -40,9 +43,7 @@ abstract contract SwapController is
         // Sushiswap logic
         else if (dexId == 0x04) return _swapWithCurve(swapPayload);
         else if (dexId == 0x05) {
-            (bool success, bytes memory data) = BALANCER_VAULT.call(
-                swapPayload
-            );
+            (bool success, bytes memory data) = balancerVault.call(swapPayload);
             if (!success) revert FailedSwap();
             if (keccak256(swapPayload[0:4]) == keccak256("0x52bbbe29")) {
                 return abi.decode(data, (uint256));

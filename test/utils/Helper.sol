@@ -7,7 +7,7 @@ abstract contract Helper is Test {
     string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
     string public ARBITRUM_RPC_URL = vm.envString("ARBITRUM_RPC_URL");
 
-    ////////////// TOKEEN INFO STATE VARS //////////////
+    ////////////// TOKEEN INFO STATE VARS ARBITRUM //////////////
     address constant USDC_ADDRESS = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address constant USDT_ADDRESS = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address constant DAI_ADDRESS = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
@@ -18,7 +18,7 @@ abstract contract Helper is Test {
     address constant secondSender = address(0x02);
     uint256 constant BASIS_POINTS_DIVISOR = 10000;
 
-    ////////////// DEX & VAULT STATE VARS //////////////
+    ////////////// DEX & VAULT STATE VARS ARBITRUM //////////////
     address constant EARTHQUAKE_VAULT =
         0xb4fbD25A32d21299e356916044D6FbB078016c46;
     address constant EARTHQUAKE_VAULT_USDT =
@@ -97,4 +97,26 @@ abstract contract Helper is Test {
         0xe22D2beDb3Eca35E6397e0C6D62857094aA26F52;
     address constant HOP_USDT_BRIDGE =
         0xCB0a4177E0A60247C0ad18Be87f8eDfF6DD30283;
+
+    /////////////////// ZAP FROM VARS MAINNET ///////////////////
+    address constant USDC_ADDRESS_ETH =
+        0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address constant USDT_ADDRESS_ETH =
+        0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address constant WETH_ADDRESS_ETH =
+        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant STARGATE_ROUTER =
+        0x8731d54E9D02c286767d56ac03e8037C07e01e98;
+    address constant STARGATE_ROUTER_USINGETH =
+        0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
+    address constant LAYER_ZERO_ROUTER_LOCAL =
+        0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675;
+    address constant LAYER_ZERO_ROUTER_REMOTE =
+        0x3c2269811836af69497E5F486A85D7316753cf62;
+    address constant UNISWAP_V2_FACTORY =
+        0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address constant SUSHI_V2_FACTORY_ETH =
+        0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
+    // TODO: Deterministically calculate this address
+    address public y2kArbRouter = 0x06D538690AF257Da524f25D0CD52fD85b1c2173E;
 }

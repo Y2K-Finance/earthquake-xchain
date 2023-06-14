@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
+interface IStargateRouter {
+    function factory() external view returns (address);
+
+    function poolId() external view returns (uint16);
+}
+
 interface IEarthQuakeVault {
     function controller() external view returns (address);
 

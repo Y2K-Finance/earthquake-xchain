@@ -16,14 +16,22 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     //               CONFIG                //
     /////////////////////////////////////////
-    function forkAndConfig() public {
+    function setUp() public {
+        setUpArbitrum();
+    }
+
+    function test_forkDest() public {
         assertEq(vm.activeFork(), arbitrumFork);
+        assertEq(
+            IEarthQuakeVault(EARTHQUAKE_VAULT).controller(),
+            EARTHQUAKE_CONTROLLER
+        );
     }
 
     /////////////////////////////////////////
     //               STATE VARS            //
     /////////////////////////////////////////
-    function test_stateVars() public {
+    function test_stateVarsDest() public {
         assertEq(zapDest.stargateRelayer(), stargateRelayer);
         assertEq(zapDest.layerZeroRelayer(), layerZeroRelayer);
         assertEq(address(zapDest.earthquakeVault()), EARTHQUAKE_VAULT);
@@ -35,7 +43,7 @@ contract BridgeDestTests is BridgeHelper {
     }
 
     /////////////////////////////////////////
-    //            STATE FUNCTIONS          //
+    //       STATE CHANGING FUNCTIONS       //
     /////////////////////////////////////////
     function test_setTrustedRemoteLookup() public {
         uint16 srcChainId = 1;
@@ -664,21 +672,6 @@ contract BridgeDestTests is BridgeHelper {
 
         vm.expectRevert(IErrors.InvalidCaller.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
-
-        vm.startPrank(layerZeroRelayer);
-        vm.expectRevert(IErrors.InvalidCaller.selector);
-        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
-
-        // Setup the payload
-        bytes1 funcSelector = 0x00;
-        bytes1 bridgeId = 0x00;
-        payload = abi.encode(funcSelector, bridgeId, sender, EPOCH_ID);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
-
-        // TODO: Null Balance
-        // TODO: InvalidInput
     }
 
     function testErrors_lzReceiveInvalidCallerMapping() public {

@@ -7,8 +7,6 @@ import {IUniswapPair} from "../../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
-import "forge-std/console.sol";
-
 contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
     bytes public constant V2_INIT_HASH =

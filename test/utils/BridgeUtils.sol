@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/Test.sol";
 import {Helper} from "./Helper.sol";
 import {ZapDest} from "../../src/bridgeZaps/zapDest.sol";
+import {ZapFrom} from "../../src/bridgeZaps/zapFrom.sol";
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IEarthQuakeVault, IERC1155} from "../utils/Interfaces.sol";
@@ -13,6 +14,7 @@ contract BridgeHelper is Helper {
     address layerZeroRelayer;
 
     ZapDest public zapDest;
+    ZapFrom public zapFrom;
 
     uint256 mainnetFork;
     uint256 arbitrumFork;
@@ -38,7 +40,7 @@ contract BridgeHelper is Helper {
     //               CONFIG                //
     /////////////////////////////////////////
 
-    function setUp() public virtual {
+    function setUpArbitrum() public virtual {
         mainnetFork = vm.createSelectFork(MAINNET_RPC_URL, 17269532);
         arbitrumFork = vm.createFork(ARBITRUM_RPC_URL);
         vm.selectFork(arbitrumFork);
@@ -65,6 +67,30 @@ contract BridgeHelper is Helper {
         vm.label(address(zapDest), "ZapDest");
         vm.label(CELER_BRIDGE, "CELR");
         vm.label(HYPHEN_BRIDGE, "HYPHEN");
+    }
+
+    function setUpMainnet() public {
+        mainnetFork = vm.createSelectFork(MAINNET_RPC_URL);
+        vm.selectFork(mainnetFork);
+        zapFrom = new ZapFrom(
+            STARGATE_ROUTER,
+            STARGATE_ROUTER_USINGETH,
+            LAYER_ZERO_ROUTER_REMOTE,
+            LAYER_ZERO_ROUTER_LOCAL,
+            y2kArbRouter,
+            UNISWAP_V2_FACTORY,
+            SUSHI_V2_FACTORY_ETH,
+            UNISWAP_V3_FACTORY,
+            BALANCER_VAULT
+        );
+
+        vm.label(address(0x01), "Sender");
+        vm.label(address(0x02), "SecondSender");
+        vm.label(USDC_ADDRESS_ETH, "USDC");
+        vm.label(WETH_ADDRESS_ETH, "WETH");
+        vm.label(address(zapFrom), "ZapFrom");
+        vm.label(STARGATE_ROUTER, "STG ERC20");
+        vm.label(STARGATE_ROUTER_USINGETH, "STG ETH");
     }
 
     /////////////////////////////////////////
