@@ -7,11 +7,14 @@ import {IUniswapPair} from "../../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
+import "forge-std/console.sol";
+
 contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
-    bytes public constant V2_INIT_HASH =
+    // TODO: The INITs should be inputs
+    bytes public constant PRIMARY_INIT_HASH =
         hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1";
-    bytes public constant SUSHI_INIT_HASH =
+    bytes public constant SECONDARY_INIT_HASH =
         hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
     address public immutable uniswapV2ForkFactory;
     address public immutable sushiFactory;
@@ -32,16 +35,19 @@ contract UniswapV2Swapper is IErrors {
             payload,
             (address[], uint256)
         );
+        console.logUint(path.length);
+        console.logAddress(path[0]);
+        console.logAddress(path[1]);
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
         bytes memory initCodeHash;
         address factory;
         if (dexId == 0x01) {
-            initCodeHash = V2_INIT_HASH;
+            initCodeHash = PRIMARY_INIT_HASH;
             factory = uniswapV2ForkFactory;
         } else if (dexId == 0x02) {
-            initCodeHash = SUSHI_INIT_HASH;
+            initCodeHash = SECONDARY_INIT_HASH;
             factory = sushiFactory;
         }
 

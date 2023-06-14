@@ -8,6 +8,8 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
 
+import "forge-std/console.sol";
+
 contract ZapFrom is IErrors, SwapController {
     using SafeTransferLib for ERC20;
     // TODO: Best way to use a uint16 for the input in router?
@@ -111,6 +113,7 @@ contract ZapFrom is IErrors, SwapController {
         address receivedToken,
         uint16 srcPoolId,
         uint16 dstPoolId,
+        bytes1 dexId,
         bytes calldata swapPayload,
         bytes calldata bridgePayload
     ) external payable {
@@ -118,11 +121,7 @@ contract ZapFrom is IErrors, SwapController {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        uint256 receivedAmount = _swap(
-            swapPayload[0],
-            amountIn,
-            swapPayload[32:]
-        );
+        uint256 receivedAmount = _swap(dexId, amountIn, swapPayload);
         _bridge(
             receivedAmount,
             receivedToken,

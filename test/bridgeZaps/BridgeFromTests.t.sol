@@ -120,7 +120,7 @@ contract BridgeFromTests is BridgeHelper {
         path[0] = fromToken;
         path[1] = receivedToken;
         uint256 toAmountMin = 100e6;
-        bytes memory swapPayload = abi.encode(dexId, path, toAmountMin);
+        bytes memory swapPayload = abi.encode(path, toAmountMin);
         bytes memory bridgePayload = abi.encode(address(0x01), 0);
 
         vm.startPrank(sender);
@@ -134,6 +134,7 @@ contract BridgeFromTests is BridgeHelper {
             receivedToken,
             srcPoolId,
             dstPoolId,
+            dexId,
             swapPayload,
             bridgePayload
         );
@@ -331,6 +332,7 @@ contract BridgeFromTests is BridgeHelper {
         address receivedToken = USDT_ADDRESS_ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 2;
+        bytes1 dexId = 0x01;
         bytes memory swapPayload = abi.encode(bytes(""));
         bytes memory bridgePayload = abi.encode(bytes(""));
 
@@ -341,6 +343,7 @@ contract BridgeFromTests is BridgeHelper {
             receivedToken,
             srcPoolId,
             dstPoolId,
+            dexId,
             swapPayload,
             bridgePayload
         );
@@ -353,6 +356,7 @@ contract BridgeFromTests is BridgeHelper {
             receivedToken,
             srcPoolId,
             dstPoolId,
+            dexId,
             swapPayload,
             bridgePayload
         );
