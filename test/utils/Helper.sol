@@ -62,6 +62,10 @@ abstract contract Helper is Test {
         0x1886D09C9Ade0c5DB822D85D21678Db67B6c2982;
     address constant TJ_FACTORY = 0x8e42f2F4101563bF679975178e880FD87d3eFd4e;
     address constant TJ_FACTORY_V1 = 0xaE4EC9901c3076D0DdBe76A520F9E90a6227aCB7;
+    bytes public constant PRIMARY_INIT_HASH_ARB =
+        hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1";
+    bytes public constant SECONDARY_INIT_HASH_ARB =
+        hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
 
     ////////////// EARTHQUAKE VAULT STATE VARS //////////////
     address constant EARTHQUAKE_CONTROLLER =
@@ -104,8 +108,14 @@ abstract contract Helper is Test {
         0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant USDT_ADDRESS_ETH =
         0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address constant OHM_ADDRESS_ETH =
+        0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
     address constant WETH_ADDRESS_ETH =
         0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant DAI_ADDRESS_ETH =
+        0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address constant WBTC_ADDRESS_ETH =
+        0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address constant STARGATE_ROUTER =
         0x8731d54E9D02c286767d56ac03e8037C07e01e98;
     address constant STARGATE_ROUTER_USINGETH =
@@ -120,4 +130,9 @@ abstract contract Helper is Test {
         0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
     // TODO: Deterministically calculate this address
     address public y2kArbRouter = 0x06D538690AF257Da524f25D0CD52fD85b1c2173E;
+
+    bytes public constant PRIMARY_INIT_HASH_ETH =
+        hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
+    bytes public constant SECONDARY_INIT_HASH_ETH =
+        hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
 }

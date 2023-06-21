@@ -7,23 +7,31 @@ import {IUniswapPair} from "../../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
-import "forge-std/console.sol";
-
 contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
-    // TODO: The INITs should be inputs
-    bytes public constant PRIMARY_INIT_HASH =
-        hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1";
-    bytes public constant SECONDARY_INIT_HASH =
-        hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
     address public immutable uniswapV2ForkFactory;
     address public immutable sushiFactory;
+    // TODO: Should hard code these as constants
+    bytes public primaryInitHash;
+    bytes public secondaryInitHash;
 
-    constructor(address _uniswapV2Factory, address _sushiFactory) {
+    constructor(
+        address _uniswapV2Factory,
+        address _sushiFactory,
+        bytes memory _primaryInitHash,
+        bytes memory _secondaryInitHash
+    ) {
         if (_uniswapV2Factory == address(0)) revert InvalidInput();
         if (_sushiFactory == address(0)) revert InvalidInput();
+        if (keccak256(_primaryInitHash) == keccak256(bytes("")))
+            revert InvalidInput();
+        if (keccak256(_secondaryInitHash) == keccak256(bytes("")))
+            revert InvalidInput();
+
         uniswapV2ForkFactory = _uniswapV2Factory;
         sushiFactory = _sushiFactory;
+        primaryInitHash = _primaryInitHash;
+        secondaryInitHash = _secondaryInitHash;
     }
 
     function _swapUniswapV2(
@@ -35,19 +43,16 @@ contract UniswapV2Swapper is IErrors {
             payload,
             (address[], uint256)
         );
-        console.logUint(path.length);
-        console.logAddress(path[0]);
-        console.logAddress(path[1]);
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
         bytes memory initCodeHash;
         address factory;
         if (dexId == 0x01) {
-            initCodeHash = PRIMARY_INIT_HASH;
+            initCodeHash = primaryInitHash;
             factory = uniswapV2ForkFactory;
         } else if (dexId == 0x02) {
-            initCodeHash = SECONDARY_INIT_HASH;
+            initCodeHash = secondaryInitHash;
             factory = sushiFactory;
         }
 

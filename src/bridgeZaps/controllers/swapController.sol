@@ -22,10 +22,19 @@ abstract contract SwapController is
         address _uniswapV2Factory,
         address _sushiFactory,
         address _uniswapV3Factory,
-        address _balancerVault
+        address _balancerVault,
+        address _wethAddress,
+        bytes memory _primaryInitHash,
+        bytes memory _secondaryInitHash
     )
-        UniswapV2Swapper(_uniswapV2Factory, _sushiFactory)
+        UniswapV2Swapper(
+            _uniswapV2Factory,
+            _sushiFactory,
+            _primaryInitHash,
+            _secondaryInitHash
+        )
         UniswapV3Swapper(_uniswapV3Factory)
+        CurveSwapper(_wethAddress)
     {
         if (_balancerVault == address(0)) revert InvalidInput();
         balancerVault = _balancerVault;
@@ -40,12 +49,13 @@ abstract contract SwapController is
         else if (dexId == 0x02) return _swapUniswapV3(fromAmount, swapPayload);
         else if (dexId == 0x03)
             return _swapUniswapV2(0x02, fromAmount, swapPayload);
-        // Sushiswap logic
         else if (dexId == 0x04) return _swapWithCurve(swapPayload);
         else if (dexId == 0x05) {
             (bool success, bytes memory data) = balancerVault.call(swapPayload);
             if (!success) revert FailedSwap();
-            if (keccak256(swapPayload[0:4]) == keccak256("0x52bbbe29")) {
+
+            bytes4 selector = abi.decode(swapPayload, (bytes4));
+            if (selector == bytes4(0x52bbbe29)) {
                 return abi.decode(data, (uint256));
             } else {
                 int256[] memory assetDeltas = abi.decode(data, (int256[]));

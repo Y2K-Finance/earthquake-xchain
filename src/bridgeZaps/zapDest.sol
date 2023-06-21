@@ -57,11 +57,18 @@ contract ZapDest is
         address hyphenBridge,
         address uniswapV2Factory,
         address sushiSwapFactory,
-        address uniswapV3Factory
+        address uniswapV3Factory,
+        bytes memory _primaryInitHash,
+        bytes memory _secondaryInitHash
     )
         VaultController(_earthquakeVault)
         BridgeController(celerBridge, hyphenBridge)
-        UniswapV2Swapper(uniswapV2Factory, sushiSwapFactory)
+        UniswapV2Swapper(
+            uniswapV2Factory,
+            sushiSwapFactory,
+            _primaryInitHash,
+            _secondaryInitHash
+        )
         UniswapV3Swapper(uniswapV3Factory)
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
@@ -127,6 +134,7 @@ contract ZapDest is
             amountLD;
 
         // NOTE: The relayer holds the balance of all tokens
+        // TODO: Dynamic or whitelisted vaults -- prevent false balance attacks with untrusted vaults
         _depositToVault(id, amountLD, address(this), _token);
 
         emit ReceivedDeposit(_token, address(this), amountLD);

@@ -57,7 +57,9 @@ contract BridgeHelper is Helper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.label(address(0x01), "Sender");
@@ -73,20 +75,26 @@ contract BridgeHelper is Helper {
         mainnetFork = vm.createSelectFork(MAINNET_RPC_URL);
         vm.selectFork(mainnetFork);
         zapFrom = new ZapFrom(
-            STARGATE_ROUTER,
-            STARGATE_ROUTER_USINGETH,
-            LAYER_ZERO_ROUTER_REMOTE,
-            LAYER_ZERO_ROUTER_LOCAL,
-            y2kArbRouter,
-            UNISWAP_V2_FACTORY,
-            SUSHI_V2_FACTORY_ETH,
-            UNISWAP_V3_FACTORY,
-            BALANCER_VAULT
+            ZapFrom.Config(
+                STARGATE_ROUTER,
+                STARGATE_ROUTER_USINGETH,
+                LAYER_ZERO_ROUTER_REMOTE,
+                LAYER_ZERO_ROUTER_LOCAL,
+                y2kArbRouter,
+                UNISWAP_V2_FACTORY,
+                SUSHI_V2_FACTORY_ETH,
+                UNISWAP_V3_FACTORY,
+                BALANCER_VAULT,
+                WETH_ADDRESS_ETH,
+                PRIMARY_INIT_HASH_ETH,
+                SECONDARY_INIT_HASH_ETH
+            )
         );
 
         vm.label(address(0x01), "Sender");
         vm.label(address(0x02), "SecondSender");
         vm.label(USDC_ADDRESS_ETH, "USDC");
+        vm.label(USDT_ADDRESS_ETH, "USDT");
         vm.label(WETH_ADDRESS_ETH, "WETH");
         vm.label(address(zapFrom), "ZapFrom");
         vm.label(STARGATE_ROUTER, "STG ERC20");

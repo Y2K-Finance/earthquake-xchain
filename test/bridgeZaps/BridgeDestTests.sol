@@ -546,7 +546,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -558,7 +560,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -570,7 +574,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -582,7 +588,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -594,7 +602,9 @@ contract BridgeDestTests is BridgeHelper {
             address(0),
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -606,7 +616,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             address(0),
             SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -618,7 +630,9 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             address(0),
-            UNISWAP_V3_FACTORY
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
         );
 
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -630,7 +644,37 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
-            address(0)
+            address(0),
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new ZapDest(
+            stargateRelayer,
+            layerZeroRelayer,
+            EARTHQUAKE_VAULT,
+            CELER_BRIDGE,
+            HYPHEN_BRIDGE,
+            CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
+            UNISWAP_V3_FACTORY,
+            bytes(""),
+            SECONDARY_INIT_HASH_ARB
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new ZapDest(
+            stargateRelayer,
+            layerZeroRelayer,
+            EARTHQUAKE_VAULT,
+            CELER_BRIDGE,
+            HYPHEN_BRIDGE,
+            CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            bytes("")
         );
     }
 

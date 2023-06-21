@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
+import {WETH} from "lib/solmate/src/tokens/WETH.sol";
 import {SwapController} from "./controllers/swapController.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
@@ -24,37 +25,47 @@ contract ZapFrom is IErrors, SwapController {
     // TODO: Make this constant?
     bytes public layerZeroRemoteAndLocal;
 
+    struct Config {
+        address _stargateRouter;
+        address _stargateRouterEth;
+        address _layerZeroRouterRemote;
+        address _layerZeroRouterLocal;
+        address _y2kArbRouter;
+        address _uniswapV2Factory;
+        address _sushiSwapFactory;
+        address _uniswapV3Factory;
+        address _balancerVault;
+        address _wethAddress;
+        bytes _primaryInitHash;
+        bytes _secondaryInitHash;
+    }
+
     constructor(
-        address _stargateRouter,
-        address _stargateRouterEth,
-        address _layerZeroRouterRemote,
-        address _layerZeroRouterLocal,
-        address _y2kArbRouter,
-        address _uniswapV2Factory,
-        address _sushiSwapFactory,
-        address _uniswapV3Factory,
-        address _balancerVault
+        Config memory _config
     )
         SwapController(
-            _uniswapV2Factory,
-            _sushiSwapFactory,
-            _uniswapV3Factory,
-            _balancerVault
+            _config._uniswapV2Factory,
+            _config._sushiSwapFactory,
+            _config._uniswapV3Factory,
+            _config._balancerVault,
+            _config._wethAddress,
+            _config._primaryInitHash,
+            _config._secondaryInitHash
         )
     {
-        if (_stargateRouter == address(0)) revert InvalidInput();
-        if (_stargateRouterEth == address(0)) revert InvalidInput();
-        if (_layerZeroRouterRemote == address(0)) revert InvalidInput();
-        if (_layerZeroRouterLocal == address(0)) revert InvalidInput();
-        if (_y2kArbRouter == address(0)) revert InvalidInput();
-        stargateRouter = _stargateRouter;
-        stargateRouterEth = _stargateRouterEth;
-        layerZeroRouter = _layerZeroRouterLocal;
+        if (_config._stargateRouter == address(0)) revert InvalidInput();
+        if (_config._stargateRouterEth == address(0)) revert InvalidInput();
+        if (_config._layerZeroRouterRemote == address(0)) revert InvalidInput();
+        if (_config._layerZeroRouterLocal == address(0)) revert InvalidInput();
+        if (_config._y2kArbRouter == address(0)) revert InvalidInput();
+        stargateRouter = _config._stargateRouter;
+        stargateRouterEth = _config._stargateRouterEth;
+        layerZeroRouter = _config._layerZeroRouterLocal;
         layerZeroRemoteAndLocal = abi.encodePacked(
-            _layerZeroRouterRemote,
+            _config._layerZeroRouterRemote,
             address(this)
         );
-        y2kArbRouter = _y2kArbRouter;
+        y2kArbRouter = _config._y2kArbRouter;
     }
 
     //////////////////////////////////////////////
@@ -75,7 +86,13 @@ contract ZapFrom is IErrors, SwapController {
         if (msg.value == 0) revert InvalidInput();
         if (amountIn == 0) revert InvalidInput();
 
-        ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        if (fromToken != address(0)) {
+            ERC20(fromToken).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amountIn
+            );
+        }
         _bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
     }
 
@@ -121,7 +138,18 @@ contract ZapFrom is IErrors, SwapController {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        // NOTE: Checking here instead of passing in the FromToken as solely for Balancer!!!
+        // TODO: Check most gas efficient work around for this
+        if (dexId == 0x05)
+            ERC20(fromToken).safeApprove(balancerVault, amountIn);
         uint256 receivedAmount = _swap(dexId, amountIn, swapPayload);
+
+        // TODO: Do we need a step to check if fromToken == WETH? Then wrap it and set FromToken to address(0)
+        if (receivedToken == wethAddress) {
+            WETH(wethAddress).withdraw(receivedAmount);
+            receivedToken = address(0);
+        }
+
         _bridge(
             receivedAmount,
             receivedToken,
@@ -147,6 +175,7 @@ contract ZapFrom is IErrors, SwapController {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+
     function _bridge(
         uint amountIn,
         address fromToken,
@@ -155,7 +184,13 @@ contract ZapFrom is IErrors, SwapController {
         bytes calldata payload
     ) private {
         if (fromToken == address(0)) {
-            IStargateRouter(stargateRouterEth).swapETHAndCall{value: msg.value}(
+            console.logUint(amountIn);
+            // NOTE: When sending after a swap msg.value will be less than amountIn as it only contains the fee
+            // When sending without a swap msg.value will be more than amountIn as it contains the fee + amountIn
+            uint256 msgValue = msg.value > amountIn
+                ? msg.value
+                : amountIn + msg.value;
+            IStargateRouter(stargateRouterEth).swapETHAndCall{value: msgValue}(
                 uint16(ARBITRUM_CHAIN_ID), // destination Stargate chainId
                 payable(msg.sender), // refund additional messageFee to this address
                 ARB_RECEIVER, // the receiver of the destination ETH
@@ -179,4 +214,6 @@ contract ZapFrom is IErrors, SwapController {
             );
         }
     }
+
+    receive() external payable {}
 }
