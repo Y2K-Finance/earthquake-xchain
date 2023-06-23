@@ -35,6 +35,7 @@ contract BridgeHelper is Helper {
         address[] bridges,
         address sender
     );
+    event VaultWhitelisted(address vault, address sender);
 
     /////////////////////////////////////////
     //               CONFIG                //
@@ -52,7 +53,6 @@ contract BridgeHelper is Helper {
         zapDest = new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -61,6 +61,7 @@ contract BridgeHelper is Helper {
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
+        zapDest.whitelistVault(EARTHQUAKE_VAULT);
 
         vm.label(address(0x01), "Sender");
         vm.label(address(0x02), "SecondSender");
@@ -108,7 +109,8 @@ contract BridgeHelper is Helper {
         address sender,
         address receiver,
         address token,
-        uint256 id
+        uint256 id,
+        address vaultAddress
     )
         internal
         returns (
@@ -128,7 +130,7 @@ contract BridgeHelper is Helper {
 
         srcAddress = abi.encode(stargateRelayer); // Set to sender address
         nonce = 0;
-        payload = abi.encode(receiver, id);
+        payload = abi.encode(receiver, id, vaultAddress);
         chainId = 1; // Set to 1 for mainnet
 
         assertEq(IERC20(token).balanceOf(sender), 0);
@@ -138,7 +140,8 @@ contract BridgeHelper is Helper {
     function _setupLzReceiveWithdraw(
         address sender,
         address receiver,
-        uint256 epochId
+        uint256 epochId,
+        address vaultAddress
     )
         internal
         pure
@@ -149,10 +152,19 @@ contract BridgeHelper is Helper {
         bytes1 funcSelector = 0x01;
         bytes1 bridgeId = 0x00;
 
-        payload = abi.encode(funcSelector, bridgeId, receiver, epochId);
+        payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            receiver,
+            epochId,
+            vaultAddress
+        );
     }
 
-    function _depositToVault(address _depositor) internal returns (uint256) {
+    function _depositToVault(
+        address _depositor,
+        address _vaultAddress
+    ) internal returns (uint256) {
         address token = WETH_ADDRESS;
         (
             bytes memory srcAddress,
@@ -160,7 +172,13 @@ contract BridgeHelper is Helper {
             uint256 amount,
             bytes memory payload,
             uint256 chainId
-        ) = setupSgReceiveDeposit(stargateRelayer, _depositor, token, EPOCH_ID);
+        ) = setupSgReceiveDeposit(
+                stargateRelayer,
+                _depositor,
+                token,
+                EPOCH_ID,
+                _vaultAddress
+            );
         vm.prank(stargateRelayer);
         zapDest.sgReceive(
             uint16(chainId),
@@ -185,6 +203,7 @@ contract BridgeHelper is Helper {
         address sender,
         address receiver,
         uint256 epochId,
+        address vaultAddress,
         bytes1 bridgeId,
         bytes1 swapId,
         bytes1 dexId,
@@ -207,6 +226,7 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
@@ -219,6 +239,7 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
@@ -233,6 +254,7 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
@@ -247,6 +269,7 @@ contract BridgeHelper is Helper {
         address sender,
         address receiver,
         uint256 epochId,
+        address vaultAddress,
         bytes1 bridgeId,
         bytes1 swapId,
         bytes1 dexId,
@@ -269,6 +292,7 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
@@ -282,6 +306,7 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
@@ -289,7 +314,6 @@ contract BridgeHelper is Helper {
                 fee
             );
         } else if (bridgeId == 0x03) {
-            uint256 hopSlippage = 100;
             // NOTE: Bonder fee used = max(amount.mul(2).div(10000), minBonderFeeAbsolute);
             uint256 bonderFee = (toAmountMin * 4) / 10000;
             payload = abi.encode(
@@ -297,14 +321,23 @@ contract BridgeHelper is Helper {
                 bridgeId,
                 receiver,
                 epochId,
+                vaultAddress,
                 swapId,
                 toAmountMin,
                 dexId,
                 toToken,
                 fee,
-                hopSlippage,
+                100, // hopSlippage
                 bonderFee
             );
         }
+    }
+
+    function _setupHopBridge(address _toToken, address _bridge) internal {
+        address[] memory tokens = new address[](1);
+        address[] memory bridges = new address[](1);
+        tokens[0] = _toToken;
+        bridges[0] = _bridge;
+        zapDest.setTokenToHopBridge(tokens, bridges);
     }
 }

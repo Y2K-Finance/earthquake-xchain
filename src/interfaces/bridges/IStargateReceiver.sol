@@ -9,5 +9,5 @@ interface IStargateReceiver {
         address _token, // the token contract on the local chain
         uint256 amountLD, // the qty of local _token contract tokens
         bytes memory payload
-    ) external;
+    ) external payable;
 }

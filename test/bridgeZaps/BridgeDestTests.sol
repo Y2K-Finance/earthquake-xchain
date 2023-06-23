@@ -34,7 +34,6 @@ contract BridgeDestTests is BridgeHelper {
     function test_stateVarsDest() public {
         assertEq(zapDest.stargateRelayer(), stargateRelayer);
         assertEq(zapDest.layerZeroRelayer(), layerZeroRelayer);
-        assertEq(address(zapDest.earthquakeVault()), EARTHQUAKE_VAULT);
         assertEq(address(zapDest.celerBridge()), CELER_BRIDGE);
         assertEq(address(zapDest.hyphenBridge()), HYPHEN_BRIDGE);
         assertEq(zapDest.uniswapV2ForkFactory(), CAMELOT_FACTORY);
@@ -73,6 +72,14 @@ contract BridgeDestTests is BridgeHelper {
         assertEq(zapDest.tokenToHopBridge(USDT_ADDRESS), HOP_USDT_BRIDGE);
     }
 
+    function test_whitelistVault() public {
+        vm.expectEmit(true, true, true, false);
+        emit VaultWhitelisted(EARTHQUAKE_VAULT_USDT, address(this));
+        zapDest.whitelistVault(EARTHQUAKE_VAULT_USDT);
+
+        assertEq(zapDest.whitelistedVault(EARTHQUAKE_VAULT_USDT), 1);
+    }
+
     /////////////////////////////////////////
     //        VAULT PUBLIC FUNCTIONS        //
     /////////////////////////////////////////
@@ -85,7 +92,13 @@ contract BridgeDestTests is BridgeHelper {
             uint256 amount,
             bytes memory payload,
             uint256 chainId
-        ) = setupSgReceiveDeposit(stargateRelayer, sender, token, EPOCH_ID);
+        ) = setupSgReceiveDeposit(
+                stargateRelayer,
+                sender,
+                token,
+                EPOCH_ID,
+                EARTHQUAKE_VAULT
+            );
 
         vm.startPrank(stargateRelayer);
         vm.expectEmit(true, true, true, false);
@@ -109,7 +122,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_withdrawWithLzReceive() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -128,7 +141,12 @@ contract BridgeDestTests is BridgeHelper {
             bytes memory srcAddress,
             uint64 nonce,
             bytes memory payload
-        ) = _setupLzReceiveWithdraw(layerZeroRelayer, sender, EPOCH_ID);
+        ) = _setupLzReceiveWithdraw(
+                layerZeroRelayer,
+                sender,
+                EPOCH_ID,
+                EARTHQUAKE_VAULT
+            );
         vm.startPrank(layerZeroRelayer);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
@@ -144,7 +162,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_withdrawOnDest() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         bytes1 funcSelector = 0x01;
         bytes1 bridgeId = 0x00;
         uint16 srcChainId = 1;
@@ -165,6 +183,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             EPOCH_ID,
             srcChainId,
+            EARTHQUAKE_VAULT,
             bytes("")
         );
 
@@ -177,7 +196,7 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     function test_withdrawAndBridgeWithCeler() public {
         // Deposits to the valut as the sender
-        _depositToVault(sender);
+        _depositToVault(sender, EARTHQUAKE_VAULT);
         bytes1 funcSelector = 0x02;
         bytes1 bridgeId = 0x01;
         uint16 srcChainId = 1;
@@ -186,7 +205,14 @@ contract BridgeDestTests is BridgeHelper {
         // Withdraw from vault
         vm.roll(block.timestamp);
         vm.startPrank(sender);
-        zapDest.withdraw(funcSelector, bridgeId, EPOCH_ID, srcChainId, payload);
+        zapDest.withdraw(
+            funcSelector,
+            bridgeId,
+            EPOCH_ID,
+            srcChainId,
+            EARTHQUAKE_VAULT,
+            payload
+        );
 
         assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
         assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
@@ -199,7 +225,7 @@ contract BridgeDestTests is BridgeHelper {
     // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
     function test_withdrawAndBridgeWithHyphen() private {
         // Deposits to the valut as the sender
-        _depositToVault(sender);
+        _depositToVault(sender, EARTHQUAKE_VAULT);
         bytes1 funcSelector = 0x02;
         bytes1 bridgeId = 0x02;
         uint16 srcChainId = 1;
@@ -212,6 +238,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             EPOCH_ID,
             srcChainId,
+            EARTHQUAKE_VAULT,
             bytes("")
         );
 
@@ -226,7 +253,7 @@ contract BridgeDestTests is BridgeHelper {
     // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
     function test_withdrawAndBridgeWithHop() private {
         // Deposits to the valut as the sender
-        _depositToVault(sender);
+        _depositToVault(sender, EARTHQUAKE_VAULT);
         bytes1 funcSelector = 0x02;
         bytes1 bridgeId = 0x03;
         uint16 srcChainId = 1;
@@ -239,6 +266,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             EPOCH_ID,
             srcChainId,
+            EARTHQUAKE_VAULT,
             bytes("")
         );
 
@@ -259,7 +287,7 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     function test_withdrawSwapCamelotBridgeHyphen() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -281,6 +309,7 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
@@ -303,7 +332,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_withdrawSwapSushiBridgeHyphen() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -325,6 +354,7 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
@@ -345,7 +375,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_withdrawSwapUniV3BridgeHyphen() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -367,6 +397,7 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
@@ -387,23 +418,19 @@ contract BridgeDestTests is BridgeHelper {
 
     /////////////////////////////////////////
     //                HOP                  //
-    /////////////////////////////////////////
+    ////////////////////////////////////////
+
     function test_withdrawSwapCamelotBridgeHop() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
         bytes memory trustedAddress = abi.encode(layerZeroRelayer);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
-        // Set the hop bridge
-        address toToken = USDC_ADDRESS;
-        address[] memory tokens = new address[](1);
-        address[] memory bridges = new address[](1);
-        tokens[0] = toToken;
-        bridges[0] = HOP_USDC_BRIDGE;
-        zapDest.setTokenToHopBridge(tokens, bridges);
+        // Set up bridge info
+        _setupHopBridge(USDC_ADDRESS, HOP_USDC_BRIDGE);
 
         // Calculate amount received in withdraw
         vm.roll(block.timestamp);
@@ -418,10 +445,11 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
-                toToken
+                USDC_ADDRESS // toToken
             );
 
         vm.startPrank(layerZeroRelayer);
@@ -439,7 +467,7 @@ contract BridgeDestTests is BridgeHelper {
     // NOTE: Tests with hop using USDT bridge instead of USDC
     function test_withdrawSwapSushiBridgeHop() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -447,12 +475,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set the hop bridge
-        address toToken = USDT_ADDRESS;
-        address[] memory tokens = new address[](1);
-        address[] memory bridges = new address[](1);
-        tokens[0] = toToken;
-        bridges[0] = HOP_USDT_BRIDGE;
-        zapDest.setTokenToHopBridge(tokens, bridges);
+        _setupHopBridge(USDT_ADDRESS, HOP_USDT_BRIDGE);
 
         // Calculate amount received in withdraw
         vm.roll(block.timestamp);
@@ -467,10 +490,11 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
-                toToken
+                USDT_ADDRESS // toToken
             );
 
         vm.startPrank(layerZeroRelayer);
@@ -487,7 +511,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_withdrawSwapUniV3BridgeHop() public {
         // Deposits to the valut as the sender
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
         uint16 srcChainId = 1;
 
         // Set the trusted remote
@@ -495,12 +519,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set the hop bridge
-        address toToken = USDC_ADDRESS;
-        address[] memory tokens = new address[](1);
-        address[] memory bridges = new address[](1);
-        tokens[0] = toToken;
-        bridges[0] = HOP_USDC_BRIDGE;
-        zapDest.setTokenToHopBridge(tokens, bridges);
+        _setupHopBridge(USDC_ADDRESS, HOP_USDC_BRIDGE);
 
         // Calculate amount received in withdraw
         vm.roll(block.timestamp);
@@ -515,10 +534,11 @@ contract BridgeDestTests is BridgeHelper {
                 layerZeroRelayer,
                 sender,
                 EPOCH_ID,
+                EARTHQUAKE_VAULT,
                 bridgeId,
                 swapId,
                 dexId,
-                toToken
+                USDC_ADDRESS // toToken
             );
 
         vm.startPrank(layerZeroRelayer);
@@ -541,7 +561,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             address(0),
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -554,21 +573,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            address(0),
-            EARTHQUAKE_VAULT,
-            CELER_BRIDGE,
-            HYPHEN_BRIDGE,
-            CAMELOT_FACTORY,
-            SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY,
-            PRIMARY_INIT_HASH_ARB,
-            SECONDARY_INIT_HASH_ARB
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new ZapDest(
-            stargateRelayer,
-            layerZeroRelayer,
             address(0),
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -583,7 +587,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             address(0),
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -597,7 +600,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             address(0),
             CAMELOT_FACTORY,
@@ -611,7 +613,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             address(0),
@@ -625,7 +626,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -639,7 +639,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -653,7 +652,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -667,7 +665,6 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             layerZeroRelayer,
-            EARTHQUAKE_VAULT,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -698,7 +695,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.setTokenToHopBridge(tokens, bridges);
     }
 
-    function testErrors_sgReceive() public {
+    function testErrors_sgReceiveInvalidCaller() public {
         uint16 chainId = 0;
         bytes memory data = "";
         uint256 nonce = 0;
@@ -706,6 +703,22 @@ contract BridgeDestTests is BridgeHelper {
 
         vm.expectRevert(IErrors.InvalidCaller.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+    }
+
+    function testErrors_sgReceiveInvalidVault() public {
+        uint16 chainId = 0;
+        bytes memory data = "";
+        uint256 nonce = 0;
+        bytes memory payload = abi.encode(
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT_USDT
+        );
+
+        vm.startPrank(stargateRelayer);
+        vm.expectRevert(IErrors.InvalidVault.selector);
+        zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        vm.stopPrank();
     }
 
     function testErrors_lzReceiveInvalidCallerSender() public {
@@ -741,7 +754,8 @@ contract BridgeDestTests is BridgeHelper {
             funcSelector,
             bridgeId,
             sender,
-            EPOCH_ID
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
         );
 
         // Set the trusted remote
@@ -750,6 +764,31 @@ contract BridgeDestTests is BridgeHelper {
 
         vm.startPrank(layerZeroRelayer);
         vm.expectRevert(IErrors.InvalidFunctionId.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_withdrawInvalidVault() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        uint64 nonce = 0;
+
+        // Encode data
+        bytes1 funcSelector = 0x01;
+        bytes1 bridgeId = 0x00;
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT_USDT
+        );
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        vm.startPrank(layerZeroRelayer);
+        vm.expectRevert(IErrors.InvalidVault.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
@@ -765,7 +804,8 @@ contract BridgeDestTests is BridgeHelper {
             funcSelector,
             bridgeId,
             sender,
-            EPOCH_ID
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
         );
 
         // Set the trusted remote
@@ -782,7 +822,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
         uint64 nonce = 0;
         bytes memory srcAddress = abi.encode(layerZeroRelayer);
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
         bytes memory trustedAddress = abi.encode(layerZeroRelayer);
@@ -801,6 +841,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             sender,
             EPOCH_ID,
+            EARTHQUAKE_VAULT,
             swapId,
             (amount * 9999) / 10_000,
             dexId,
@@ -818,7 +859,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
         uint64 nonce = 0;
         bytes memory srcAddress = abi.encode(layerZeroRelayer);
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
         bytes memory trustedAddress = abi.encode(layerZeroRelayer);
@@ -837,6 +878,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             sender,
             EPOCH_ID,
+            EARTHQUAKE_VAULT,
             swapId,
             (amount * 9999) / 10_000,
             dexId,
@@ -854,7 +896,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
         uint64 nonce = 0;
         bytes memory srcAddress = abi.encode(layerZeroRelayer);
-        uint256 amount = _depositToVault(sender);
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
         bytes memory trustedAddress = abi.encode(layerZeroRelayer);
@@ -873,6 +915,7 @@ contract BridgeDestTests is BridgeHelper {
             bridgeId,
             sender,
             EPOCH_ID,
+            EARTHQUAKE_VAULT,
             swapId,
             (amount * 9999) / 10_000,
             dexId,

@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import {VaultController} from "./controllers/vaultController.sol";
+import {VaultController, IEarthquake} from "./controllers/vaultController.sol";
 import {BridgeController} from "./controllers/bridgeController.sol";
 import {BytesLib} from "../libraries/BytesLib.sol";
 import {UniswapV3Swapper} from "./dexHelpers/uniswapV3.sol";
@@ -30,6 +30,7 @@ contract ZapDest is
     mapping(address => uint256) public addrCounter;
     mapping(uint16 => bytes) public trustedRemoteLookup;
     mapping(bytes1 => address) public idToExchange;
+    mapping(address => uint256) public whitelistedVault;
     mapping(address => mapping(uint256 => uint256)) public addressToIdToAmount;
 
     event ReceivedDeposit(address token, address receiver, uint256 amount);
@@ -48,11 +49,11 @@ contract ZapDest is
         address[] bridges,
         address sender
     );
+    event VaultWhitelisted(address vault, address sender);
 
     constructor(
         address _stargateRelayer,
         address _layerZeroRelayer,
-        address _earthquakeVault,
         address celerBridge,
         address hyphenBridge,
         address uniswapV2Factory,
@@ -61,7 +62,6 @@ contract ZapDest is
         bytes memory _primaryInitHash,
         bytes memory _secondaryInitHash
     )
-        VaultController(_earthquakeVault)
         BridgeController(celerBridge, hyphenBridge)
         UniswapV2Swapper(
             uniswapV2Factory,
@@ -104,6 +104,12 @@ contract ZapDest is
         emit TokenToHopBridgeSet(_tokens, _bridges, msg.sender);
     }
 
+    function whitelistVault(address _vaultAddress) external onlyOwner {
+        if (_vaultAddress == address(0)) revert InvalidInput();
+        whitelistedVault[_vaultAddress] = 1;
+        emit VaultWhitelisted(_vaultAddress, msg.sender);
+    }
+
     //////////////////////////////////////////////
     //                 PUBLIC                   //
     //////////////////////////////////////////////s
@@ -114,6 +120,7 @@ contract ZapDest is
     /// @param amountLD The qty of local _token contract tokens
     /// @param _payload The bytes containing the toAddress
     // TODO: Confirm correct checks happening for amountLD/ _token on srcChain
+    // NOTE: The relayer holds the balance of all tokens
     function sgReceive(
         uint16 _chainId,
         bytes memory _srcAddress,
@@ -121,22 +128,20 @@ contract ZapDest is
         address _token,
         uint256 amountLD,
         bytes memory _payload
-    ) external override {
+    ) external payable override {
         if (msg.sender != stargateRelayer) revert InvalidCaller();
-        (address receiver, uint256 id) = abi.decode(
+        (address receiver, uint256 id, address vaultAddress) = abi.decode(
             _payload,
-            (address, uint256)
+            (address, uint256, address)
         );
 
-        // TODO: Check the efficiency of this vs. +=
-        addressToIdToAmount[receiver][id] =
-            addressToIdToAmount[receiver][id] +
-            amountLD;
+        // TODO: In the event we revert - does stargate refund? Or should we have refund addeess?
+        if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
+        addressToIdToAmount[receiver][id] += amountLD;
 
-        // NOTE: The relayer holds the balance of all tokens
-        // TODO: Dynamic or whitelisted vaults -- prevent false balance attacks with untrusted vaults
-        _depositToVault(id, amountLD, address(this), _token);
+        // TODO: msg.value management for bridging ETH
 
+        _depositToVault(id, amountLD, address(this), _token, vaultAddress);
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
@@ -169,15 +174,24 @@ contract ZapDest is
             bytes1 funcSelector,
             bytes1 bridgeId,
             address receiver,
-            uint256 id
-        ) = abi.decode(_payload, (bytes1, bytes1, address, uint256));
+            uint256 id,
+            address vaultAddress
+        ) = abi.decode(_payload, (bytes1, bytes1, address, uint256, address));
         if (funcSelector == 0x00) revert InvalidFunctionId();
 
-        _payload = _payload.length == 128
+        _payload = _payload.length == 160
             ? bytes("")
-            : _payload.sliceBytes(128, _payload.length - 128);
+            : _payload.sliceBytes(160, _payload.length - 160);
 
-        _withdraw(funcSelector, bridgeId, receiver, id, _srcChainId, _payload);
+        _withdraw(
+            funcSelector,
+            bridgeId,
+            receiver,
+            id,
+            _srcChainId,
+            vaultAddress,
+            _payload
+        );
     }
 
     function withdraw(
@@ -185,6 +199,7 @@ contract ZapDest is
         bytes1 bridgeId,
         uint256 id,
         uint16 _srcChainId,
+        address vaultAddress,
         bytes memory _withdrawPayload
     ) external {
         _withdraw(
@@ -193,6 +208,7 @@ contract ZapDest is
             msg.sender,
             id,
             _srcChainId,
+            vaultAddress,
             _withdrawPayload
         );
     }
@@ -206,21 +222,25 @@ contract ZapDest is
         address receiver,
         uint256 id,
         uint16 _srcChainId,
+        address vaultAddress,
         bytes memory _payload
     ) private {
+        if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
         uint256 assets = addressToIdToAmount[receiver][id];
         if (assets == 0) revert NullBalance();
         delete addressToIdToAmount[receiver][id];
 
         // NOTE: If !=0 0x00 && !0x01 && <4 then id is 0x02 or 0x03
-        if (funcSelector == 0x01) _withdrawFromVault(id, assets, receiver);
+        if (funcSelector == 0x01)
+            _withdrawFromVault(id, assets, receiver, vaultAddress);
         else if (uint8(funcSelector) < 4) {
             uint256 amountReceived = _withdrawFromVault(
                 id,
                 assets,
-                address(this)
+                address(this),
+                vaultAddress
             );
-            address asset = earthquakeVault.asset();
+            address asset = IEarthquake(vaultAddress).asset();
             // NOTE: Re-using amountReceived for bridge input
             if (funcSelector == 0x03)
                 (asset, _payload, amountReceived) = _swapToBridgeToken(
