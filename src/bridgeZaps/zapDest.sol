@@ -13,6 +13,8 @@ import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
 import {ERC1155Holder} from "lib/openzeppelin-contracts/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+import "forge-std/console.sol";
+
 contract ZapDest is
     Ownable,
     ERC1155Holder,
@@ -62,6 +64,7 @@ contract ZapDest is
         bytes memory _primaryInitHash,
         bytes memory _secondaryInitHash
     )
+        payable
         BridgeController(celerBridge, hyphenBridge)
         UniswapV2Swapper(
             uniswapV2Factory,
@@ -83,7 +86,7 @@ contract ZapDest is
     function setTrustedRemoteLookup(
         uint16 srcChainId,
         bytes calldata trustedAddress
-    ) external onlyOwner {
+    ) external payable onlyOwner {
         if (keccak256(trustedAddress) == keccak256(bytes("")))
             revert InvalidInput();
         trustedRemoteLookup[srcChainId] = trustedAddress;
@@ -93,7 +96,7 @@ contract ZapDest is
     function setTokenToHopBridge(
         address[] calldata _tokens,
         address[] calldata _bridges
-    ) external onlyOwner {
+    ) external payable onlyOwner {
         if (_tokens.length != _bridges.length) revert InvalidInput();
         for (uint256 i = 0; i < _tokens.length; ) {
             tokenToHopBridge[_tokens[i]] = _bridges[i];
@@ -104,7 +107,7 @@ contract ZapDest is
         emit TokenToHopBridgeSet(_tokens, _bridges, msg.sender);
     }
 
-    function whitelistVault(address _vaultAddress) external onlyOwner {
+    function whitelistVault(address _vaultAddress) external payable onlyOwner {
         if (_vaultAddress == address(0)) revert InvalidInput();
         whitelistedVault[_vaultAddress] = 1;
         emit VaultWhitelisted(_vaultAddress, msg.sender);
@@ -120,15 +123,18 @@ contract ZapDest is
     /// @param amountLD The qty of local _token contract tokens
     /// @param _payload The bytes containing the toAddress
     // TODO: Confirm correct checks happening for amountLD/ _token on srcChain
-    // NOTE: The relayer holds the balance of all tokens
     function sgReceive(
         uint16 _chainId,
         bytes memory _srcAddress,
         uint256 _nonce,
         address _token,
         uint256 amountLD,
-        bytes memory _payload
+        bytes calldata _payload
     ) external payable override {
+        // TODO: Check the token being used correct token or address(0) when ETH
+        // TODO: msg.value management for bridging ETH
+        // TODO: Check the amoutnLD is the correct amount
+
         if (msg.sender != stargateRelayer) revert InvalidCaller();
         (address receiver, uint256 id, address vaultAddress) = abi.decode(
             _payload,
@@ -139,8 +145,7 @@ contract ZapDest is
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
         addressToIdToAmount[receiver][id] += amountLD;
 
-        // TODO: msg.value management for bridging ETH
-
+        // TODO: Hardcode address(this) as a constant
         _depositToVault(id, amountLD, address(this), _token, vaultAddress);
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
@@ -162,14 +167,16 @@ contract ZapDest is
             keccak256(trustedRemoteLookup[_srcChainId])
         ) revert InvalidCaller();
 
-        // iterate the addrCounter - suggested by LZ
         address fromAddress;
         assembly {
             fromAddress := mload(add(_srcAddress, 20))
         }
-        addrCounter[fromAddress] += 1;
+        // TODO: Iterate the addrCounter - suggested by LZ?
+        unchecked {
+            addrCounter[fromAddress] += 1;
+        }
 
-        // decode data for function - additional data needed to append?
+        // NOTE: Decoding data and slicing payload for swapPayload
         (
             bytes1 funcSelector,
             bytes1 bridgeId,
@@ -197,6 +204,7 @@ contract ZapDest is
     function withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
+        address receiver,
         uint256 id,
         uint16 _srcChainId,
         address vaultAddress,
@@ -205,7 +213,7 @@ contract ZapDest is
         _withdraw(
             funcSelector,
             bridgeId,
-            msg.sender,
+            receiver,
             id,
             _srcChainId,
             vaultAddress,
@@ -230,10 +238,11 @@ contract ZapDest is
         if (assets == 0) revert NullBalance();
         delete addressToIdToAmount[receiver][id];
 
-        // NOTE: If !=0 0x00 && !0x01 && <4 then id is 0x02 or 0x03
+        // NOTE: We check FS!=0x00 (sgReceive()) && FS==0x01 && FS<4
         if (funcSelector == 0x01)
             _withdrawFromVault(id, assets, receiver, vaultAddress);
         else if (uint8(funcSelector) < 4) {
+            // TODO: Hardcode address(this) as a constant
             uint256 amountReceived = _withdrawFromVault(
                 id,
                 assets,
@@ -241,8 +250,8 @@ contract ZapDest is
                 vaultAddress
             );
             address asset = IEarthquake(vaultAddress).asset();
-            // NOTE: Re-using amountReceived for bridge input
             if (funcSelector == 0x03)
+                // NOTE: Re-using amountReceived for bridge input
                 (asset, _payload, amountReceived) = _swapToBridgeToken(
                     amountReceived,
                     asset,
@@ -277,8 +286,11 @@ contract ZapDest is
         path[1] = toToken;
 
         if (swapId == 0x01) {
-            bytes memory swapPayload = abi.encode(path, toAmountMin);
-            amountOut = _swapUniswapV2(dexId, swapAmount, swapPayload);
+            amountOut = _swapUniswapV2(
+                dexId,
+                swapAmount,
+                abi.encode(path, toAmountMin) // swapPayload
+            );
             _payload = _payload.sliceBytes(128, _payload.length - 128);
         } else if (swapId == 0x02) {
             uint24[] memory fee = new uint24[](1);
@@ -286,8 +298,10 @@ contract ZapDest is
                 _payload,
                 (bytes1, uint256, bytes1, address, uint24)
             );
-            bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
-            amountOut = _swapUniswapV3(swapAmount, swapPayload);
+            amountOut = _swapUniswapV3(
+                swapAmount,
+                abi.encode(path, fee, toAmountMin) // swapPayload
+            );
             _payload = _payload.sliceBytes(160, _payload.length - 160);
         } else revert InvalidSwapId();
         return (toToken, _payload, amountOut);

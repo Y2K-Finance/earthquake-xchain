@@ -181,6 +181,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.withdraw(
             funcSelector,
             bridgeId,
+            sender,
             EPOCH_ID,
             srcChainId,
             EARTHQUAKE_VAULT,
@@ -208,6 +209,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.withdraw(
             funcSelector,
             bridgeId,
+            sender,
             EPOCH_ID,
             srcChainId,
             EARTHQUAKE_VAULT,
@@ -236,6 +238,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.withdraw(
             funcSelector,
             bridgeId,
+            address(this),
             EPOCH_ID,
             srcChainId,
             EARTHQUAKE_VAULT,
@@ -264,6 +267,7 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.withdraw(
             funcSelector,
             bridgeId,
+            address(this),
             EPOCH_ID,
             srcChainId,
             EARTHQUAKE_VAULT,

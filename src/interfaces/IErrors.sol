@@ -12,5 +12,6 @@ interface IErrors {
     error InvalidSwapId();
     error InvalidBridgeId();
     error InvalidVault();
+    error InvalidHopBridge();
     error NullBalance();
 }

@@ -11,7 +11,7 @@ contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
     address public immutable uniswapV2ForkFactory;
     address public immutable sushiFactory;
-    // TODO: Should hard code these as constants
+    // TODO: Could hardcode these as constants
     bytes public primaryInitHash;
     bytes public secondaryInitHash;
 
@@ -56,9 +56,7 @@ contract UniswapV2Swapper is IErrors {
             factory = sushiFactory;
         }
 
-        // TODO: More efficent way to use this amount?
-        uint256 cachedFrom = fromAmount;
-
+        amountOut = fromAmount;
         for (uint256 i = 0; i < path.length - 1; ) {
             {
                 address fromToken = path[i];
@@ -72,9 +70,9 @@ contract UniswapV2Swapper is IErrors {
                     (reserveA, reserveB) = (reserveB, reserveA);
 
                 amounts[i] =
-                    ((cachedFrom * 997) * reserveB) /
-                    ((reserveA * 1000) + (cachedFrom * 997));
-                cachedFrom = amounts[i];
+                    ((amountOut * 997) * reserveB) /
+                    ((reserveA * 1000) + (amountOut * 997));
+                amountOut = amounts[i];
             }
 
             unchecked {
@@ -87,7 +85,37 @@ contract UniswapV2Swapper is IErrors {
 
         SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
 
-        // NOTE: Abstract into it's own function
+        return _swap(path, pairs, amounts);
+    }
+
+    function _getPair(
+        address tokenA,
+        address tokenB,
+        bytes memory initCodeHash,
+        address factory
+    ) internal pure returns (address pair) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        pair = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff",
+                            factory,
+                            keccak256(abi.encodePacked(tokenA, tokenB)),
+                            initCodeHash
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    function _swap(
+        address[] memory path,
+        address[] memory pairs,
+        uint256[] memory amounts
+    ) internal returns (uint256) {
         bool zeroForOne = path[0] < path[1];
         if (pairs.length > 1) {
             IUniswapPair(pairs[0]).swap(
@@ -124,29 +152,6 @@ contract UniswapV2Swapper is IErrors {
             );
         }
 
-        amountOut = amounts[amounts.length - 1];
-    }
-
-    function _getPair(
-        address tokenA,
-        address tokenB,
-        bytes memory initCodeHash,
-        address factory
-    ) internal pure returns (address pair) {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        pair = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex"ff",
-                            factory,
-                            keccak256(abi.encodePacked(tokenA, tokenB)),
-                            initCodeHash
-                        )
-                    )
-                )
-            )
-        );
+        return amounts[amounts.length - 1];
     }
 }

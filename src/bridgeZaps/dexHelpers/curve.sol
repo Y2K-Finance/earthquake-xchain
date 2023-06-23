@@ -6,8 +6,6 @@ import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 import {ICurvePair} from "../../interfaces/dexes/ICurvePair.sol";
 
-import "forge-std/console.sol";
-
 contract CurveSwapper is IErrors {
     using SafeTransferLib for ERC20;
     address payable immutable wethAddress;
@@ -20,7 +18,7 @@ contract CurveSwapper is IErrors {
     function _swapWithCurve(
         bytes calldata payload
     ) internal returns (uint256 amountOut) {
-        // TODO: Need to find most effiient way to get the bytes
+        // TODO: Need to find most efficient way to get the bytes
         bytes1 swapType = abi.decode(payload, (bytes1));
         if (swapType == 0x01) {
             (
@@ -89,7 +87,7 @@ contract CurveSwapper is IErrors {
             );
             if (amountOut == 0) revert InvalidOutput();
         } else if (swapType == 0x03) {
-            amountOut = zapInMulti(payload);
+            return zapInMulti(payload);
         } else revert InvalidInput();
     }
 
@@ -120,9 +118,9 @@ contract CurveSwapper is IErrors {
             pools,
             iValues,
             jValues,
-            fromAmount
+            fromAmount,
+            toAmountMin
         );
-        if (amountOut < toAmountMin) revert InvalidOutput();
         if (amountOut == 0) revert InvalidOutput();
         return amountOut;
     }
@@ -132,7 +130,8 @@ contract CurveSwapper is IErrors {
         address[] memory pools,
         uint256[] memory iValues,
         uint256[] memory jValues,
-        uint256 fromAmount
+        uint256 fromAmount,
+        uint256 toAmountMin
     ) internal returns (uint256 amountOut) {
         amountOut = fromAmount;
         for (uint256 i = 0; i < pools.length; ) {
@@ -144,7 +143,7 @@ contract CurveSwapper is IErrors {
                     int128(int256(iValues[i])),
                     int128(int256(jValues[i])),
                     amountOut,
-                    0
+                    i == pools.length - 1 ? toAmountMin : 0
                 );
             } else {
                 amountOut = _swapEth(
@@ -154,7 +153,7 @@ contract CurveSwapper is IErrors {
                     iValues[i],
                     jValues[i],
                     amountOut,
-                    0
+                    i == pools.length - 1 ? toAmountMin : 0
                 );
             }
             unchecked {
@@ -177,7 +176,6 @@ contract CurveSwapper is IErrors {
 
         ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
-
         return fromAmount;
     }
 
@@ -192,10 +190,9 @@ contract CurveSwapper is IErrors {
     ) private returns (uint256) {
         ERC20(fromToken).safeApprove(pool, fromAmount);
         uint256 cachedBalance = ERC20(toToken).balanceOf(address(this));
-        // TODO: Check if this works when swapping with ETH pools + compatibility due to int128 conversions?
+
         ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn, false);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
-
         return fromAmount;
     }
 }

@@ -15,8 +15,6 @@ abstract contract BridgeController is IErrors {
     ICelerBridge public immutable celerBridge;
     IHyphenBridge public immutable hyphenBridge;
 
-    // TODO: Check the destinationDomain isn't just the chainId
-    mapping(uint256 => uint32) public chainIdToDomain;
     mapping(address => address) public tokenToHopBridge;
 
     constructor(address _celerBridge, address _hyphenBridge) {
@@ -39,14 +37,12 @@ abstract contract BridgeController is IErrors {
         bytes memory _withdrawPayload
     ) internal {
         if (_bridgeId == 0x01) {
-            uint256 maxSlippage = abi.decode(_withdrawPayload, (uint256));
-            console.logUint(maxSlippage);
             _bridgeWithCeler(
                 _receiver,
                 _token,
                 _amount,
                 _sourceChainId,
-                maxSlippage
+                abi.decode(_withdrawPayload, (uint256)) // maxSlippage
             );
         } else if (_bridgeId == 0x02)
             _bridgeWithHyphen(_receiver, _token, _amount, _sourceChainId);
@@ -112,7 +108,8 @@ abstract contract BridgeController is IErrors {
         uint256 amountOutMin = (_amount * (10000 - maxSlippage)) / 10000;
         uint256 deadline = block.timestamp + 2700;
         address bridgeAddress = tokenToHopBridge[_token];
-        ERC20(_token).safeApprove(bridgeAddress, _amount);
+        if (bridgeAddress == address(0)) revert InvalidHopBridge();
+        ERC20(_token).safeApprove(bridgeAddress, _amount); // (bridgeAddress,amount)
 
         IHopBridge(bridgeAddress).swapAndSend(
             _srcChainId, // _destination: Domain ID of the destination chain

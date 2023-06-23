@@ -9,20 +9,17 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
 
-import "forge-std/console.sol";
-
 contract ZapFrom is IErrors, SwapController {
     using SafeTransferLib for ERC20;
-    // TODO: Best way to use a uint16 for the input in router?
-    uint256 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: ID used by Stargate for Arbitrum
-    // TODO: Value must be abi.encodePacked(bytes);
-    // TODO: Review the destStargateComposed construction which we substitute ARB_RECEIVER for
+    uint16 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: Id used by Stargate for Arbitrum
+    // TODO: Set to abi.encodePacked(ZapDestAddress) on Arbitrum
     bytes public constant ARB_RECEIVER = "0x00";
     address public immutable stargateRouter;
     address public immutable stargateRouterEth;
     address public immutable layerZeroRouter;
     address public immutable y2kArbRouter;
-    // TODO: Make this constant?
+    // TODO: Make this constant with pre-computed address and additional var
+    // NOTE: abi.encodePacked(remoteAddress, localAddress)
     bytes public layerZeroRemoteAndLocal;
 
     struct Config {
@@ -61,6 +58,7 @@ contract ZapFrom is IErrors, SwapController {
         stargateRouter = _config._stargateRouter;
         stargateRouterEth = _config._stargateRouterEth;
         layerZeroRouter = _config._layerZeroRouterLocal;
+        // TODO: Remove this for a constant
         layerZeroRemoteAndLocal = abi.encodePacked(
             _config._layerZeroRouterRemote,
             address(this)
@@ -96,6 +94,7 @@ contract ZapFrom is IErrors, SwapController {
         _bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
     }
 
+    // TODO: Need to implement this
     function permitSwapAndBridge(
         uint amountIn,
         address fromToken,
@@ -104,7 +103,7 @@ contract ZapFrom is IErrors, SwapController {
         uint16 dstPoolId,
         bytes calldata swapPayload,
         bytes calldata bridgePayload
-    ) external payable {
+    ) public payable {
         if (msg.value == 0) revert InvalidInput();
         if (amountIn == 0) revert InvalidInput();
 
@@ -138,13 +137,16 @@ contract ZapFrom is IErrors, SwapController {
         if (amountIn == 0) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        // NOTE: Checking here instead of passing in the FromToken as solely for Balancer!!!
-        // TODO: Check most gas efficient work around for this
-        if (dexId == 0x05)
-            ERC20(fromToken).safeApprove(balancerVault, amountIn);
-        uint256 receivedAmount = _swap(dexId, amountIn, swapPayload);
 
-        // TODO: Do we need a step to check if fromToken == WETH? Then wrap it and set FromToken to address(0)
+        // NOTE: Check if not Balancer as fromToken location is dynamic
+        uint256 receivedAmount;
+        if (dexId != 0x05) {
+            receivedAmount = _swap(dexId, amountIn, swapPayload);
+        } else {
+            ERC20(fromToken).safeApprove(balancerVault, amountIn);
+            receivedAmount = _swapBalancer(swapPayload);
+        }
+
         if (receivedToken == wethAddress) {
             WETH(wethAddress).withdraw(receivedAmount);
             receivedToken = address(0);
@@ -184,9 +186,8 @@ contract ZapFrom is IErrors, SwapController {
         bytes calldata payload
     ) private {
         if (fromToken == address(0)) {
-            console.logUint(amountIn);
-            // NOTE: When sending after a swap msg.value will be less than amountIn as it only contains the fee
-            // When sending without a swap msg.value will be more than amountIn as it contains the fee + amountIn
+            // NOTE: When sending after a swap msg.value will be < amountIn as only contains the fee
+            // When sending without swap msg.value will be > amountIn as contains fee + amountIn
             uint256 msgValue = msg.value > amountIn
                 ? msg.value
                 : amountIn + msg.value;
