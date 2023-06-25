@@ -16,8 +16,15 @@ abstract contract VaultController is IErrors {
         address inputToken,
         address vaultAddress
     ) internal {
-        ERC20(inputToken).safeApprove(address(vaultAddress), amount);
-        IEarthquake(vaultAddress).deposit(id, amount, receiver);
+        if (msg.value > 0) {
+            IEarthquake(vaultAddress).depositETH{value: msg.value}(
+                id,
+                receiver
+            );
+        } else {
+            ERC20(inputToken).safeApprove(address(vaultAddress), amount);
+            IEarthquake(vaultAddress).deposit(id, amount, receiver);
+        }
     }
 
     function _withdrawFromVault(

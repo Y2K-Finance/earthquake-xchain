@@ -33,7 +33,8 @@ contract ZapDest is
     mapping(uint16 => bytes) public trustedRemoteLookup;
     mapping(bytes1 => address) public idToExchange;
     mapping(address => uint256) public whitelistedVault;
-    mapping(address => mapping(uint256 => uint256)) public addressToIdToAmount;
+    mapping(address => mapping(address => mapping(uint256 => uint256)))
+        public receiverToVaultToIdToAmount;
 
     event ReceivedDeposit(address token, address receiver, uint256 amount);
     event ReceivedWithdrawal(
@@ -131,10 +132,7 @@ contract ZapDest is
         uint256 amountLD,
         bytes calldata _payload
     ) external payable override {
-        // TODO: Check the token being used correct token or address(0) when ETH
-        // TODO: msg.value management for bridging ETH
         // TODO: Check the amoutnLD is the correct amount
-
         if (msg.sender != stargateRelayer) revert InvalidCaller();
         (address receiver, uint256 id, address vaultAddress) = abi.decode(
             _payload,
@@ -143,8 +141,13 @@ contract ZapDest is
 
         // TODO: In the event we revert - does stargate refund? Or should we have refund addeess?
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
-        addressToIdToAmount[receiver][id] += amountLD;
 
+        // NOTE: We should know the epochId even when queueing
+        // EpochId = uint256(keccak256(abi.encodePacked(marketId,epochBegin,epochEnd)));
+        receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
+
+        // NOTE: When payload > 96 we are signalling this is queued for the next epoch
+        if (_payload.length == 128) id = 0;
         // TODO: Hardcode address(this) as a constant
         _depositToVault(id, amountLD, address(this), _token, vaultAddress);
         emit ReceivedDeposit(_token, address(this), amountLD);
@@ -234,9 +237,11 @@ contract ZapDest is
         bytes memory _payload
     ) private {
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
-        uint256 assets = addressToIdToAmount[receiver][id];
+        uint256 assets = receiverToVaultToIdToAmount[receiver][vaultAddress][
+            id
+        ];
         if (assets == 0) revert NullBalance();
-        delete addressToIdToAmount[receiver][id];
+        delete receiverToVaultToIdToAmount[receiver][vaultAddress][id];
 
         // NOTE: We check FS!=0x00 (sgReceive()) && FS==0x01 && FS<4
         if (funcSelector == 0x01)

@@ -62,6 +62,7 @@ contract BridgeHelper is Helper {
             SECONDARY_INIT_HASH_ARB
         );
         zapDest.whitelistVault(EARTHQUAKE_VAULT);
+        zapDest.whitelistVault(EARTHQUAKE_VAULT_V2);
 
         vm.label(address(0x01), "Sender");
         vm.label(address(0x02), "SecondSender");

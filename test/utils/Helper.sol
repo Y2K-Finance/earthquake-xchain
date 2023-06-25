@@ -24,6 +24,8 @@ abstract contract Helper is Test {
         0xb4fbD25A32d21299e356916044D6FbB078016c46;
     address constant EARTHQUAKE_VAULT_USDT =
         0x76b1803530A3608bD5F1e4a8bdaf3007d7d2D7FA;
+    address constant EARTHQUAKE_VAULT_V2 =
+        0x4410ea8E14b07A5f4e873803FEc45FF44934F0f2;
     address constant EARTHQUAKE_ADMIN =
         0x225aCF1D32f0928A96E49E6110abA1fdf777C85f;
     address constant EARTHQUAKE_FACTORY =
