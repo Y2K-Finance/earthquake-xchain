@@ -12,8 +12,8 @@ contract UniswapV2Swapper is IErrors {
     address public immutable uniswapV2ForkFactory;
     address public immutable sushiFactory;
     // TODO: Could hardcode these as constants
-    bytes public primaryInitHash;
-    bytes public secondaryInitHash;
+    bytes internal primaryInitHash;
+    bytes internal secondaryInitHash;
 
     constructor(
         address _uniswapV2Factory,

@@ -16,6 +16,7 @@ abstract contract Helper is Test {
     address constant DUSD_ADDRESS = 0xF0B5cEeFc89684889e5F7e0A7775Bd100FcD3709;
     address constant sender = address(0x01);
     address constant secondSender = address(0x02);
+    address constant thirdSender = address(0x03);
     address constant refundSender = 0x2d244ed7d17AE47886f7f13F53e74b6B0bC16fdC;
     uint256 constant BASIS_POINTS_DIVISOR = 10000;
 

@@ -13,5 +13,6 @@ interface IErrors {
     error InvalidBridgeId();
     error InvalidVault();
     error InvalidHopBridge();
+    error InvalidQueueId();
     error NullBalance();
 }

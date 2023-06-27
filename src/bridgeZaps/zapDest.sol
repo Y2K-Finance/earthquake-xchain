@@ -27,6 +27,7 @@ contract ZapDest is
 {
     using BytesLib for bytes;
     address public immutable stargateRelayer;
+    address public immutable stargateRelayerEth;
     address public immutable layerZeroRelayer;
 
     mapping(address => uint256) public addrCounter;
@@ -56,6 +57,7 @@ contract ZapDest is
 
     constructor(
         address _stargateRelayer,
+        address _stargateRelayerEth,
         address _layerZeroRelayer,
         address celerBridge,
         address hyphenBridge,
@@ -76,8 +78,10 @@ contract ZapDest is
         UniswapV3Swapper(uniswapV3Factory)
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
+        if (_stargateRelayerEth == address(0)) revert InvalidInput();
         if (_layerZeroRelayer == address(0)) revert InvalidInput();
         stargateRelayer = _stargateRelayer;
+        stargateRelayerEth = _stargateRelayerEth;
         layerZeroRelayer = _layerZeroRelayer;
     }
 
@@ -123,7 +127,6 @@ contract ZapDest is
     /// @param _token The token contract on the local chain
     /// @param amountLD The qty of local _token contract tokens
     /// @param _payload The bytes containing the toAddress
-    // TODO: Confirm correct checks happening for amountLD/ _token on srcChain
     function sgReceive(
         uint16 _chainId,
         bytes memory _srcAddress,
@@ -133,7 +136,8 @@ contract ZapDest is
         bytes calldata _payload
     ) external payable override {
         // TODO: Check the amoutnLD is the correct amount
-        if (msg.sender != stargateRelayer) revert InvalidCaller();
+        if (msg.sender != stargateRelayer && msg.sender != stargateRelayerEth)
+            revert InvalidCaller();
         (address receiver, uint256 id, address vaultAddress) = abi.decode(
             _payload,
             (address, uint256, address)
@@ -146,7 +150,7 @@ contract ZapDest is
         // EpochId = uint256(keccak256(abi.encodePacked(marketId,epochBegin,epochEnd)));
         receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
 
-        // NOTE: When payload > 96 we are signalling this is queued for the next epoch
+        // NOTE: When payload > 96 we are signalling this is being queued for the next epoch
         if (_payload.length == 128) id = 0;
         // TODO: Hardcode address(this) as a constant
         _depositToVault(id, amountLD, address(this), _token, vaultAddress);

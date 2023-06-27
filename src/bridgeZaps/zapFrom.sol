@@ -12,8 +12,9 @@ import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
 contract ZapFrom is IErrors, SwapController {
     using SafeTransferLib for ERC20;
     uint16 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: Id used by Stargate for Arbitrum
-    // TODO: Set to abi.encodePacked(ZapDestAddress) on Arbitrum
-    bytes public constant ARB_RECEIVER = "0x00";
+    // NOTE: This is the abi.encodePacked destAddress
+    bytes public constant ARB_RECEIVER =
+        "0x9c668a934611706f84f5b22705ecdf94c3349c5d";
     address public immutable stargateRouter;
     address public immutable stargateRouterEth;
     address public immutable layerZeroRouter;
@@ -25,7 +26,6 @@ contract ZapFrom is IErrors, SwapController {
     struct Config {
         address _stargateRouter;
         address _stargateRouterEth;
-        address _layerZeroRouterRemote;
         address _layerZeroRouterLocal;
         address _y2kArbRouter;
         address _uniswapV2Factory;
@@ -52,7 +52,6 @@ contract ZapFrom is IErrors, SwapController {
     {
         if (_config._stargateRouter == address(0)) revert InvalidInput();
         if (_config._stargateRouterEth == address(0)) revert InvalidInput();
-        if (_config._layerZeroRouterRemote == address(0)) revert InvalidInput();
         if (_config._layerZeroRouterLocal == address(0)) revert InvalidInput();
         if (_config._y2kArbRouter == address(0)) revert InvalidInput();
         stargateRouter = _config._stargateRouter;
@@ -60,7 +59,7 @@ contract ZapFrom is IErrors, SwapController {
         layerZeroRouter = _config._layerZeroRouterLocal;
         // TODO: Remove this for a constant
         layerZeroRemoteAndLocal = abi.encodePacked(
-            _config._layerZeroRouterRemote,
+            _config._y2kArbRouter,
             address(this)
         );
         y2kArbRouter = _config._y2kArbRouter;
@@ -195,7 +194,7 @@ contract ZapFrom is IErrors, SwapController {
                 uint16(ARBITRUM_CHAIN_ID), // destination Stargate chainId
                 payable(msg.sender), // refund additional messageFee to this address
                 ARB_RECEIVER, // the receiver of the destination ETH
-                IStargateRouter.SwapAmount(amountIn, 0), // TODO: the amount and the minimum swap amount
+                IStargateRouter.SwapAmount(amountIn, (amountIn * 950) / 1000),
                 IStargateRouter.lzTxObj(200000, 0, "0x"), // default lzTxObj
                 payload // the payload to send to the destination
             );
@@ -208,7 +207,7 @@ contract ZapFrom is IErrors, SwapController {
                 dstPoolId, // the destination Stargate poolId
                 payable(msg.sender), // refund adddress. if msg.sender pays too much gas, return extra eth
                 amountIn, // total tokens to send to destination chain
-                0, // min amount allowed out
+                (amountIn * 950) / 1000, // min amount allowed out
                 IStargateRouter.lzTxObj(200000, 0, "0x"), // default lzTxObj
                 ARB_RECEIVER, // destination address, the sgReceive() implementer
                 payload

@@ -11,6 +11,7 @@ import {IEarthQuakeVault, IERC1155} from "../utils/Interfaces.sol";
 
 contract BridgeHelper is Helper {
     address stargateRelayer;
+    address stargateRelayerEth;
     address layerZeroRelayer;
 
     ZapDest public zapDest;
@@ -48,10 +49,12 @@ contract BridgeHelper is Helper {
         vm.warp(EPOCH_BEGIN - 1);
 
         stargateRelayer = sender;
-        layerZeroRelayer = secondSender;
+        stargateRelayerEth = secondSender;
+        layerZeroRelayer = thirdSender;
 
         zapDest = new ZapDest(
             stargateRelayer,
+            stargateRelayerEth,
             layerZeroRelayer,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -61,11 +64,28 @@ contract BridgeHelper is Helper {
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
+
+        address stargateRelayer2 = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
+        address stargateRelayerEth2 = 0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
+        bytes memory encodedConstructor = abi.encode(
+            stargateRelayer2,
+            stargateRelayerEth2,
+            LAYER_ZERO_ROUTER_REMOTE,
+            CELER_BRIDGE,
+            HYPHEN_BRIDGE,
+            CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
+            UNISWAP_V3_FACTORY,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
+        );
+        console.logBytes(encodedConstructor);
         zapDest.whitelistVault(EARTHQUAKE_VAULT);
         zapDest.whitelistVault(EARTHQUAKE_VAULT_V2);
 
         vm.label(address(0x01), "Sender");
         vm.label(address(0x02), "SecondSender");
+        vm.label(address(0x03), "ThirdSender");
         vm.label(USDC_ADDRESS, "USDC");
         vm.label(WETH_ADDRESS, "WETH");
         vm.label(address(zapDest), "ZapDest");
@@ -80,7 +100,6 @@ contract BridgeHelper is Helper {
             ZapFrom.Config(
                 STARGATE_ROUTER,
                 STARGATE_ROUTER_USINGETH,
-                LAYER_ZERO_ROUTER_REMOTE,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -95,6 +114,7 @@ contract BridgeHelper is Helper {
 
         vm.label(address(0x01), "Sender");
         vm.label(address(0x02), "SecondSender");
+        vm.label(address(0x03), "ThirdSender");
         vm.label(USDC_ADDRESS_ETH, "USDC");
         vm.label(USDT_ADDRESS_ETH, "USDT");
         vm.label(WETH_ADDRESS_ETH, "WETH");
