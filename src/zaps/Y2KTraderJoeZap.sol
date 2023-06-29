@@ -63,7 +63,8 @@ contract Y2KTraderJoeZap is IErrors {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         address[] memory pairs = _getPairs(
             path.pairBinSteps,
@@ -82,7 +83,7 @@ contract Y2KTraderJoeZap is IErrors {
             vaultAddress,
             amountOut
         );
-        IEarthquake(vaultAddress).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountOut, receiver); // NOTE: Could take receiver input
     }
 
     function _swap(

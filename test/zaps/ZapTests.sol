@@ -98,7 +98,14 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapCamelot.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
+        zapCamelot.zapIn(
+            path,
+            fromAmount,
+            amountOut + 1,
+            id,
+            EARTHQUAKE_VAULT,
+            sender
+        );
     }
 
     function testErrors_Sushi() public {
@@ -128,7 +135,14 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapSushiV2.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
+        zapSushiV2.zapIn(
+            path,
+            fromAmount,
+            amountOut + 1,
+            id,
+            EARTHQUAKE_VAULT,
+            sender
+        );
     }
 
     function testErrors_UniswapV3() public {
@@ -207,7 +221,8 @@ contract ZapTests is SwapHelper {
             fromAmount,
             toAmountMin,
             id,
-            EARTHQUAKE_VAULT_USDT
+            EARTHQUAKE_VAULT_USDT,
+            sender
         );
 
         vm.expectRevert(IErrors.InvalidOutput.selector);
@@ -220,7 +235,8 @@ contract ZapTests is SwapHelper {
             fromAmount,
             toAmountMin,
             id,
-            EARTHQUAKE_VAULT_USDT
+            EARTHQUAKE_VAULT_USDT,
+            sender
         );
 
         (
@@ -286,7 +302,14 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapGMX.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
+        zapGMX.zapIn(
+            path,
+            fromAmount,
+            amountOut + 1,
+            id,
+            EARTHQUAKE_VAULT,
+            sender
+        );
     }
 
     function testErrors_TraderJoe() public {

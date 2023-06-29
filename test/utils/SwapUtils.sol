@@ -41,6 +41,8 @@ contract SwapHelper is Helper, PermitUtils {
     Y2KGMXZap public zapGMX;
     Y2KTraderJoeZap public zapTraderJoe;
 
+    address constant depositReceiver = address(0x11);
+
     uint256 mainnetFork;
     uint256 arbitrumFork;
 
@@ -67,7 +69,8 @@ contract SwapHelper is Helper, PermitUtils {
         // NOTE: Need to dynamically provide the INIT CODE HASH and find the factory for Chronos
         zapChronos = new Y2KChronosZap(CHRONOS_FACTORY); // Earthquake Vault | DAI RISK
 
-        vm.label(address(0x01), "Sender");
+        vm.label(sender, "Sender");
+        vm.label(depositReceiver, "Receiver");
         vm.label(USDC_ADDRESS, "USDC");
         vm.label(DAI_ADDRESS, "DAI");
         vm.label(WETH_ADDRESS, "WETH");

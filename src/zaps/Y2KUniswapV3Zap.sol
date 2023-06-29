@@ -26,6 +26,15 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     address public immutable UNISWAP_V3_FACTORY;
     IPermit2 public immutable PERMIT_2;
 
+    struct SwapInputs {
+        address[] path;
+        uint24[] fee;
+        uint256 toAmountMin;
+        uint256 id;
+        address vaultAddress;
+        address receiver;
+    }
+
     constructor(address _uniswapV3Factory, address _permit2) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
@@ -42,28 +51,36 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
         uint256 amountOut = _swap(path, fee, fromAmount);
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
     function zapInPermit(
-        address[] calldata path,
-        uint24[] calldata fee,
-        uint256 toAmountMin,
-        uint256 id,
-        address vaultAddress,
+        SwapInputs calldata inputs,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
         PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
-        uint256 amountOut = _swap(path, fee, transferDetails.requestedAmount);
-        if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        uint256 amountOut = _swap(
+            inputs.path,
+            inputs.fee,
+            transferDetails.requestedAmount
+        );
+
+        if (amountOut < inputs.toAmountMin) revert InvalidMinOut(amountOut);
+        _deposit(
+            inputs.path[inputs.path.length - 1],
+            inputs.id,
+            amountOut,
+            inputs.vaultAddress,
+            inputs.receiver
+        );
     }
 
     function uniswapV3SwapCallback(
@@ -91,10 +108,11 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         address fromToken,
         uint256 id,
         uint256 amountIn,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
     function _swap(

@@ -30,7 +30,8 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external payable {
         ERC20(fromToken).safeTransferFrom(
             msg.sender,
@@ -60,7 +61,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             );
         }
         if (amountOut == 0) revert InvalidOutput();
-        _deposit(toToken, amountOut, id, vaultAddress);
+        _deposit(toToken, amountOut, id, vaultAddress, receiver);
     }
 
     function zapInPermit(
@@ -71,6 +72,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
+        address receiver,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
@@ -99,7 +101,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             );
         }
         if (amountOut == 0) revert InvalidOutput();
-        _deposit(toToken, amountOut, id, vaultAddress);
+        _deposit(toToken, amountOut, id, vaultAddress, receiver);
     }
 
     // NOTE: Logic has to be abstract to avoid stack too deep errors
@@ -110,6 +112,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         uint256[] jValues;
         uint256 toAmountMin;
         address vaultAddress;
+        address receiver;
     }
 
     function zapInMulti(
@@ -135,7 +138,8 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             multiSwapInfo.path[multiSwapInfo.path.length - 1],
             amountOut,
             id,
-            multiSwapInfo.vaultAddress
+            multiSwapInfo.vaultAddress,
+            multiSwapInfo.receiver
         );
     }
 
@@ -161,7 +165,8 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             multiSwapInfo.path[multiSwapInfo.path.length - 1],
             amountOut,
             id,
-            multiSwapInfo.vaultAddress
+            multiSwapInfo.vaultAddress,
+            multiSwapInfo.receiver
         );
     }
 
@@ -243,9 +248,10 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         address fromToken,
         uint256 amountIn,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver); // NOTE: Could take receiver input
     }
 }

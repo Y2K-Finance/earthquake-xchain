@@ -26,7 +26,8 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         ERC20(singleSwap.assetIn).safeTransferFrom(
             msg.sender,
@@ -48,7 +49,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             toAmountMin,
             block.timestamp + 60 * 15
         );
-        _deposit(singleSwap.assetOut, id, amountOut, vaultAddress);
+        _deposit(singleSwap.assetOut, id, amountOut, vaultAddress, receiver);
     }
 
     function zapInPermit(
@@ -56,6 +57,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
+        address receiver,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
@@ -76,7 +78,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             toAmountMin,
             permit.deadline
         );
-        _deposit(singleSwap.assetOut, id, amountOut, vaultAddress);
+        _deposit(singleSwap.assetOut, id, amountOut, vaultAddress, receiver);
     }
 
     function zapInMulti(
@@ -86,7 +88,8 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         int256[] memory limits,
         uint256 deadline,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         uint256 fromAmount = uint256(limits[0]);
         address fromToken = assets[0];
@@ -110,7 +113,13 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             deadline
         );
         uint256 amountOut = uint256(-assetDeltas[assetDeltas.length - 1]);
-        _deposit(assets[assets.length - 1], id, amountOut, vaultAddress);
+        _deposit(
+            assets[assets.length - 1],
+            id,
+            amountOut,
+            vaultAddress,
+            receiver
+        );
     }
 
     function zapInMultiPermit(
@@ -120,6 +129,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         int256[] memory limits,
         uint256 id,
         address vaultAddress,
+        address receiver,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
@@ -143,7 +153,13 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             permit.deadline
         );
         uint256 amountOut = uint256(-assetDeltas[assetDeltas.length - 1]);
-        _deposit(assets[assets.length - 1], id, amountOut, vaultAddress);
+        _deposit(
+            assets[assets.length - 1],
+            id,
+            amountOut,
+            vaultAddress,
+            receiver
+        );
     }
 
     /////////////////////////////////////////
@@ -153,9 +169,10 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         address fromToken,
         uint256 id,
         uint256 amountIn,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 }

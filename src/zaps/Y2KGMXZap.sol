@@ -26,7 +26,8 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         ERC20(path[0]).safeTransferFrom(
             msg.sender,
@@ -34,7 +35,7 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
             fromAmount
         );
         uint256 amountOut = _swap(path, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
     function zapInPermit(
@@ -42,13 +43,14 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
+        address receiver,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
         PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(path, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
     /////////////////////////////////////////
@@ -58,10 +60,11 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         address fromToken,
         uint256 id,
         uint256 amountIn,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
     function _swap(

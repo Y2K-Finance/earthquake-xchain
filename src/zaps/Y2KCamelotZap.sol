@@ -29,11 +29,12 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         uint256 fromAmount,
         uint256 toAmountMin,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
         uint256 amountOut = _swap(path, fromAmount, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
     function zapInPermit(
@@ -41,6 +42,7 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
+        address receiver,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
@@ -51,7 +53,7 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
             transferDetails.requestedAmount,
             toAmountMin
         );
-        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
     /////////////////////////////////////////
@@ -61,10 +63,11 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         address fromToken,
         uint256 id,
         uint256 amountIn,
-        address vaultAddress
+        address vaultAddress,
+        address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
     function _swap(
