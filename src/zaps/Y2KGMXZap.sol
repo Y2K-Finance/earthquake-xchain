@@ -12,15 +12,12 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 contract Y2KGMXZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     IGMXVault public immutable GMX_VAULT;
-    address public immutable EARTHQUAKE_VAULT;
     IPermit2 public immutable PERMIT_2;
 
-    constructor(address _gmxVault, address _earthquakeVault, address _permit2) {
+    constructor(address _gmxVault, address _permit2) {
         if (_gmxVault == address(0)) revert InvalidInput();
-        if (_earthquakeVault == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
         GMX_VAULT = IGMXVault(_gmxVault);
-        EARTHQUAKE_VAULT = _earthquakeVault;
         PERMIT_2 = IPermit2(_permit2);
     }
 
@@ -28,7 +25,8 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         address[] calldata path,
         uint256 fromAmount,
         uint256 toAmountMin,
-        uint256 id
+        uint256 id,
+        address vaultAddress
     ) external {
         ERC20(path[0]).safeTransferFrom(
             msg.sender,
@@ -36,29 +34,34 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
             fromAmount
         );
         uint256 amountOut = _swap(path, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
     }
 
     function zapInPermit(
         address[] calldata path,
         uint256 toAmountMin,
         uint256 id,
+        address vaultAddress,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
         PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(path, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
     }
 
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
-    /////////////////////////////////////////
-
-    function _deposit(address fromToken, uint256 id, uint256 amountIn) private {
-        ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+    ////////////////////////////////////////
+    function _deposit(
+        address fromToken,
+        uint256 id,
+        uint256 amountIn,
+        address vaultAddress
+    ) private {
+        ERC20(fromToken).safeApprove(vaultAddress, amountIn);
+        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
     }
 
     function _swap(

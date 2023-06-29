@@ -23,7 +23,6 @@ contract Y2KTraderJoeZap is IErrors {
     ILBLegacyFactory public immutable LEGACY_FACTORY;
     ILBFactory public immutable FACTORY;
     IJoeFactory public immutable FACTORY_V1;
-    address public immutable EARTHQUAKE_VAULT;
 
     error InvalidPair(address tokenX, address tokenY, uint256 binStep);
 
@@ -50,27 +49,21 @@ contract Y2KTraderJoeZap is IErrors {
         V2_1
     }
 
-    constructor(
-        address legacyFactory,
-        address factory,
-        address factoryV1,
-        address _earthquakeVault
-    ) {
+    constructor(address legacyFactory, address factory, address factoryV1) {
         if (legacyFactory == address(0)) revert InvalidInput();
         if (factory == address(0)) revert InvalidInput();
         if (factoryV1 == address(0)) revert InvalidInput();
-        if (_earthquakeVault == address(0)) revert InvalidInput();
         LEGACY_FACTORY = ILBLegacyFactory(legacyFactory);
         FACTORY = ILBFactory(factory);
         FACTORY_V1 = IJoeFactory(factoryV1);
-        EARTHQUAKE_VAULT = _earthquakeVault;
     }
 
     function zapIn(
         Path calldata path,
         uint256 fromAmount,
         uint256 toAmountMin,
-        uint256 id
+        uint256 id,
+        address vaultAddress
     ) external {
         address[] memory pairs = _getPairs(
             path.pairBinSteps,
@@ -86,10 +79,10 @@ contract Y2KTraderJoeZap is IErrors {
         );
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
         path.tokenPath[path.tokenPath.length - 1].safeApprove(
-            EARTHQUAKE_VAULT,
+            vaultAddress,
             amountOut
         );
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountOut, msg.sender); // NOTE: Could take receiver input
     }
 
     function _swap(

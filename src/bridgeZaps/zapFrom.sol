@@ -8,18 +8,19 @@ import {SwapController} from "./controllers/swapController.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
+import {IPermit2} from "../interfaces/IPermit2.sol";
+import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 
-contract ZapFrom is IErrors, SwapController {
+import "forge-std/console.sol";
+
+contract ZapFrom is SwapController, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     uint16 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: Id used by Stargate for Arbitrum
-    // NOTE: This is the abi.encodePacked destAddress
-    bytes public constant ARB_RECEIVER =
-        "0x9c668a934611706f84f5b22705ecdf94c3349c5d";
+    IPermit2 public immutable permit2;
     address public immutable stargateRouter;
     address public immutable stargateRouterEth;
     address public immutable layerZeroRouter;
     address public immutable y2kArbRouter;
-    // TODO: Make this constant with pre-computed address and additional var
     // NOTE: abi.encodePacked(remoteAddress, localAddress)
     bytes public layerZeroRemoteAndLocal;
 
@@ -33,6 +34,7 @@ contract ZapFrom is IErrors, SwapController {
         address _uniswapV3Factory;
         address _balancerVault;
         address _wethAddress;
+        address _permit2;
         bytes _primaryInitHash;
         bytes _secondaryInitHash;
     }
@@ -54,15 +56,16 @@ contract ZapFrom is IErrors, SwapController {
         if (_config._stargateRouterEth == address(0)) revert InvalidInput();
         if (_config._layerZeroRouterLocal == address(0)) revert InvalidInput();
         if (_config._y2kArbRouter == address(0)) revert InvalidInput();
+        if (_config._permit2 == address(0)) revert InvalidInput();
         stargateRouter = _config._stargateRouter;
         stargateRouterEth = _config._stargateRouterEth;
         layerZeroRouter = _config._layerZeroRouterLocal;
-        // TODO: Remove this for a constant
         layerZeroRemoteAndLocal = abi.encodePacked(
             _config._y2kArbRouter,
             address(this)
         );
         y2kArbRouter = _config._y2kArbRouter;
+        permit2 = IPermit2(_config._permit2);
     }
 
     //////////////////////////////////////////////
@@ -80,6 +83,7 @@ contract ZapFrom is IErrors, SwapController {
         uint16 dstPoolId,
         bytes calldata payload
     ) external payable {
+        _checkConditions(amountIn, payload);
         if (msg.value == 0) revert InvalidInput();
         if (amountIn == 0) revert InvalidInput();
 
@@ -93,26 +97,39 @@ contract ZapFrom is IErrors, SwapController {
         _bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
     }
 
-    // TODO: Need to implement this
     function permitSwapAndBridge(
-        uint amountIn,
-        address fromToken,
         address receivedToken,
         uint16 srcPoolId,
         uint16 dstPoolId,
+        bytes1 dexId,
+        PermitTransferFrom memory permit,
+        SignatureTransferDetails calldata transferDetails,
+        bytes calldata sig,
         bytes calldata swapPayload,
         bytes calldata bridgePayload
     ) public payable {
-        if (msg.value == 0) revert InvalidInput();
-        if (amountIn == 0) revert InvalidInput();
+        _checkConditions(transferDetails.requestedAmount, bridgePayload);
 
-        // TODO: implement permit2 for the fromToken transfer
-        ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        uint256 receivedAmount = _swap(
-            swapPayload[0],
-            amountIn,
-            swapPayload[32:]
-        );
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        uint256 receivedAmount;
+        if (dexId != 0x05) {
+            receivedAmount = _swap(
+                dexId,
+                transferDetails.requestedAmount,
+                swapPayload
+            );
+        } else {
+            ERC20(permit.permitted.token).safeApprove(
+                balancerVault,
+                transferDetails.requestedAmount
+            );
+            receivedAmount = _swapBalancer(swapPayload);
+        }
+
+        if (receivedToken == wethAddress) {
+            WETH(wethAddress).withdraw(receivedAmount);
+            receivedToken = address(0);
+        }
         _bridge(
             receivedAmount,
             receivedToken,
@@ -132,12 +149,10 @@ contract ZapFrom is IErrors, SwapController {
         bytes calldata swapPayload,
         bytes calldata bridgePayload
     ) external payable {
-        if (msg.value == 0) revert InvalidInput();
-        if (amountIn == 0) revert InvalidInput();
+        _checkConditions(amountIn, bridgePayload);
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
 
-        // NOTE: Check if not Balancer as fromToken location is dynamic
         uint256 receivedAmount;
         if (dexId != 0x05) {
             receivedAmount = _swap(dexId, amountIn, swapPayload);
@@ -160,7 +175,6 @@ contract ZapFrom is IErrors, SwapController {
         );
     }
 
-    // TODO: Check the construction of the remote and local variables
     function withdraw(bytes memory payload) external payable {
         if (msg.value == 0) revert InvalidInput();
         ILayerZeroRouter(layerZeroRouter).send{value: msg.value}(
@@ -176,6 +190,18 @@ contract ZapFrom is IErrors, SwapController {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+    function _checkConditions(
+        uint256 amountIn,
+        bytes calldata payload
+    ) private {
+        if (msg.value == 0) revert InvalidInput();
+        if (amountIn == 0) revert InvalidInput();
+        (, uint256 epochId, ) = abi.decode(
+            payload,
+            (address, uint256, uint256)
+        );
+        if (epochId == 0) revert InvalidInput();
+    }
 
     function _bridge(
         uint amountIn,
@@ -193,7 +219,7 @@ contract ZapFrom is IErrors, SwapController {
             IStargateRouter(stargateRouterEth).swapETHAndCall{value: msgValue}(
                 uint16(ARBITRUM_CHAIN_ID), // destination Stargate chainId
                 payable(msg.sender), // refund additional messageFee to this address
-                ARB_RECEIVER, // the receiver of the destination ETH
+                abi.encodePacked(y2kArbRouter), // the receiver of the destination ETH
                 IStargateRouter.SwapAmount(amountIn, (amountIn * 950) / 1000),
                 IStargateRouter.lzTxObj(200000, 0, "0x"), // default lzTxObj
                 payload // the payload to send to the destination
@@ -209,7 +235,7 @@ contract ZapFrom is IErrors, SwapController {
                 amountIn, // total tokens to send to destination chain
                 (amountIn * 950) / 1000, // min amount allowed out
                 IStargateRouter.lzTxObj(200000, 0, "0x"), // default lzTxObj
-                ARB_RECEIVER, // destination address, the sgReceive() implementer
+                abi.encodePacked(y2kArbRouter), // destination address, the sgReceive() implementer
                 payload
             );
         }

@@ -169,12 +169,12 @@ contract CurveSwapper is IErrors {
         int128 i,
         int128 j,
         uint256 fromAmount,
-        uint256 toAmountIn
+        uint256 toAmountMin
     ) private returns (uint256) {
         ERC20(fromToken).safeApprove(pool, fromAmount);
         uint256 cachedBalance = ERC20(toToken).balanceOf(address(this));
 
-        ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn);
+        ICurvePair(pool).exchange(i, j, fromAmount, toAmountMin);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
         return fromAmount;
     }
@@ -186,12 +186,12 @@ contract CurveSwapper is IErrors {
         uint256 i,
         uint256 j,
         uint256 fromAmount,
-        uint256 toAmountIn
+        uint256 toAmountMin
     ) private returns (uint256) {
         ERC20(fromToken).safeApprove(pool, fromAmount);
         uint256 cachedBalance = ERC20(toToken).balanceOf(address(this));
 
-        ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn, false);
+        ICurvePair(pool).exchange(i, j, fromAmount, toAmountMin, false);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
         return fromAmount;
     }

@@ -14,7 +14,6 @@ contract ZapTests is SwapHelper {
     function forkAndConfig() public {
         assertEq(vm.activeFork(), arbitrumFork);
         assertEq(ERC20(USDC_ADDRESS).symbol(), "USDC");
-        assertEq(zapCamelot.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
         assertEq(
             IEarthQuakeVault(EARTHQUAKE_VAULT).controller(),
             EARTHQUAKE_CONTROLLER
@@ -32,43 +31,42 @@ contract ZapTests is SwapHelper {
 
     function testStateVars_Camelotet() public {
         assertEq(zapCamelot.CAMELOT_V2_FACTORY(), CAMELOT_FACTORY);
-        assertEq(zapCamelot.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapCamelot.PERMIT_2()), PERMIT_2);
     }
 
     function testStateVars_Sushi() public {
         assertEq(zapSushiV2.UNISWAP_V2_FORK_FACTORY(), SUSHI_V2_FACTORY);
-        assertEq(zapSushiV2.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapSushiV2.PERMIT_2()), PERMIT_2);
     }
 
     function testStateVars_Balancer() public {
         assertEq(address(zapBalancer.BALANCER_VAULT()), BALANCER_VAULT);
-        assertEq(zapBalancer.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapBalancer.PERMIT_2()), PERMIT_2);
     }
 
     function testStateVars_UniswapV3() public {
         assertEq(zapUniswapV3.UNISWAP_V3_FACTORY(), UNISWAP_V3_FACTORY);
-        assertEq(zapUniswapV3.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapUniswapV3.PERMIT_2()), PERMIT_2);
     }
 
     function testStateVars_Curve() public {
-        assertEq(zapCurve.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapCurve.PERMIT_2()), PERMIT_2);
+        assertEq(zapCurve.WETH_ADDRESS(), WETH_ADDRESS);
     }
 
     function testStateVars_GMX() public {
         assertEq(address(zapGMX.GMX_VAULT()), GMX_VAULT);
-        assertEq(zapGMX.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
+        assertEq(address(zapGMX.PERMIT_2()), PERMIT_2);
     }
 
     function testStateVars_TraderJoe() public {
         assertEq(address(zapTraderJoe.LEGACY_FACTORY()), TJ_LEGACY_FACTORY);
         assertEq(address(zapTraderJoe.FACTORY()), TJ_FACTORY);
         assertEq(address(zapTraderJoe.FACTORY_V1()), TJ_FACTORY_V1);
-        assertEq(zapTraderJoe.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
     }
 
     function testStateVars_Chronos() public {
         assertEq(zapChronos.UNISWAP_V2_FORK_FACTORY(), CHRONOS_FACTORY);
-        assertEq(zapChronos.EARTHQUAKE_VAULT(), EARTHQUAKE_VAULT);
     }
 
     /////////////////////////////////////////
@@ -77,13 +75,10 @@ contract ZapTests is SwapHelper {
 
     function testErrors_Camelot() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCamelotZap(address(0), EARTHQUAKE_VAULT, PERMIT_2);
+        new Y2KCamelotZap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCamelotZap(CAMELOT_FACTORY, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCamelotZap(CAMELOT_FACTORY, EARTHQUAKE_VAULT, address(0));
+        new Y2KCamelotZap(CAMELOT_FACTORY, address(0));
 
         vm.startPrank(sender);
         (
@@ -103,18 +98,15 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapCamelot.zapIn(path, fromAmount, amountOut + 1, id);
+        zapCamelot.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
     }
 
     function testErrors_Sushi() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV2Zap(address(0), EARTHQUAKE_VAULT, PERMIT_2);
+        new Y2KUniswapV2Zap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, EARTHQUAKE_VAULT, address(0));
+        new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, address(0));
 
         vm.startPrank(sender);
         (
@@ -136,18 +128,15 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapSushiV2.zapIn(path, fromAmount, amountOut + 1, id);
+        zapSushiV2.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
     }
 
     function testErrors_UniswapV3() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV3Zap(address(0), EARTHQUAKE_VAULT, PERMIT_2);
+        new Y2KUniswapV3Zap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV3Zap(UNISWAP_V3_FACTORY, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KUniswapV3Zap(UNISWAP_V3_FACTORY, EARTHQUAKE_VAULT, address(0));
+        new Y2KUniswapV3Zap(UNISWAP_V3_FACTORY, address(0));
 
         // // staging for revert test
         // vm.startPrank(sender);
@@ -176,24 +165,18 @@ contract ZapTests is SwapHelper {
 
     function testErrors_Balancer() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KBalancerZap(address(0), EARTHQUAKE_VAULT, PERMIT_2);
+        new Y2KBalancerZap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KBalancerZap(BALANCER_VAULT, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KBalancerZap(BALANCER_VAULT, EARTHQUAKE_VAULT, address(0));
+        new Y2KBalancerZap(BALANCER_VAULT, address(0));
     }
 
     function testErrors_Curve() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCurveZap(address(0), WETH_ADDRESS, PERMIT_2);
+        new Y2KCurveZap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCurveZap(EARTHQUAKE_VAULT, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KCurveZap(EARTHQUAKE_VAULT, WETH_ADDRESS, address(0));
+        new Y2KCurveZap(WETH_ADDRESS, address(0));
 
         // TODO: Invalid output from swap to wrong type of pool (zapInSingle)
 
@@ -223,7 +206,8 @@ contract ZapTests is SwapHelper {
             pool,
             fromAmount,
             toAmountMin,
-            id
+            id,
+            EARTHQUAKE_VAULT_USDT
         );
 
         vm.expectRevert(IErrors.InvalidOutput.selector);
@@ -235,7 +219,8 @@ contract ZapTests is SwapHelper {
             pool,
             fromAmount,
             toAmountMin,
-            id
+            id,
+            EARTHQUAKE_VAULT_USDT
         );
 
         (
@@ -253,41 +238,30 @@ contract ZapTests is SwapHelper {
             );
 
         // changing amountOut to revert
-        vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            100 ether,
-            id
-        );
+        Y2KCurveZap.MultiSwapInfo memory multiSwapInfo;
+        multiSwapInfo.path = path;
+        multiSwapInfo.pools = pools;
+        multiSwapInfo.iValues = iValues;
+        multiSwapInfo.jValues = jValues;
+        multiSwapInfo.toAmountMin = 100 ether;
+        multiSwapInfo.vaultAddress = EARTHQUAKE_VAULT_USDT;
 
-        path[2] = FRAX_ADDRESS;
+        vm.expectRevert(bytes("Slippage"));
+        zapCurveUSDT.zapInMulti(fromAmount, id, multiSwapInfo);
+
+        multiSwapInfo.path[2] = FRAX_ADDRESS;
         vm.expectRevert(IErrors.InvalidOutput.selector);
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            toAmountMin,
-            id
-        );
+        zapCurveUSDT.zapInMulti(fromAmount, id, multiSwapInfo);
 
         // TODO: Invalid output from swap to wrong type of pool (zapInMulti)
     }
 
     function testErrors_GMX() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KGMXZap(address(0), EARTHQUAKE_VAULT, PERMIT_2);
+        new Y2KGMXZap(address(0), PERMIT_2);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KGMXZap(GMX_VAULT, address(0), PERMIT_2);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KGMXZap(GMX_VAULT, EARTHQUAKE_VAULT, address(0));
+        new Y2KGMXZap(EARTHQUAKE_VAULT, address(0));
 
         // staging the revert test
         vm.startPrank(sender);
@@ -312,41 +286,18 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(
             abi.encodePacked(IErrors.InvalidMinOut.selector, amountOut)
         );
-        zapGMX.zapIn(path, fromAmount, amountOut + 1, id);
+        zapGMX.zapIn(path, fromAmount, amountOut + 1, id, EARTHQUAKE_VAULT);
     }
 
     function testErrors_TraderJoe() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            address(0),
-            TJ_FACTORY,
-            TJ_FACTORY_V1,
-            EARTHQUAKE_VAULT
-        );
+        new Y2KTraderJoeZap(address(0), TJ_FACTORY, TJ_FACTORY_V1);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            address(0),
-            TJ_FACTORY_V1,
-            EARTHQUAKE_VAULT
-        );
+        new Y2KTraderJoeZap(TJ_LEGACY_FACTORY, address(0), TJ_FACTORY_V1);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            TJ_FACTORY,
-            address(0),
-            EARTHQUAKE_VAULT
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            TJ_FACTORY,
-            TJ_FACTORY_V1,
-            address(0)
-        );
+        new Y2KTraderJoeZap(TJ_LEGACY_FACTORY, TJ_FACTORY, address(0));
 
         // TODO: InvalidMinOut from (zapIn)
         // TODO: InvalidPair from _getPair
@@ -355,11 +306,7 @@ contract ZapTests is SwapHelper {
 
     function testErrors_Chronos() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KChronosZap(address(0), EARTHQUAKE_VAULT);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KChronosZap(CHRONOS_FACTORY, address(0));
-        // TODO: AmountOutMin insufficient
+        new Y2KChronosZap(address(0));
     }
 
     /////////////////////////////////////////

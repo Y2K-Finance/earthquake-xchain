@@ -12,19 +12,12 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     address public immutable UNISWAP_V2_FORK_FACTORY;
-    address public immutable EARTHQUAKE_VAULT;
     IPermit2 public immutable PERMIT_2;
 
-    constructor(
-        address _sushiV2Factory,
-        address _earthquakeVault,
-        address _permit2
-    ) {
+    constructor(address _sushiV2Factory, address _permit2) {
         if (_sushiV2Factory == address(0)) revert InvalidInput();
-        if (_earthquakeVault == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
         UNISWAP_V2_FORK_FACTORY = _sushiV2Factory;
-        EARTHQUAKE_VAULT = _earthquakeVault;
         PERMIT_2 = IPermit2(_permit2);
     }
 
@@ -35,38 +28,43 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
         address[] calldata path,
         uint256 fromAmount,
         uint256 toAmountMin,
-        uint256 id
+        uint256 id,
+        address vaultAddress
     ) external {
         ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
         uint256 amountOut = _swap(path, fromAmount, toAmountMin);
-        _deposit(path[path.length - 1], id, amountOut);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
     }
 
     function zapInPermit(
         address[] calldata path,
         uint256 toAmountMin,
         uint256 id,
+        address vaultAddress,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
         PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
-        // TODO: Check the value used for transferDetails.requestedAmount
         uint256 amountOut = _swap(
             path,
             transferDetails.requestedAmount,
             toAmountMin
         );
-        _deposit(path[path.length - 1], id, amountOut);
+        _deposit(path[path.length - 1], id, amountOut, vaultAddress);
     }
 
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
-
-    function _deposit(address fromToken, uint256 id, uint256 amountIn) private {
-        ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+    function _deposit(
+        address fromToken,
+        uint256 id,
+        uint256 amountIn,
+        address vaultAddress
+    ) private {
+        ERC20(fromToken).safeApprove(vaultAddress, amountIn);
+        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
     }
 
     function _swap(
@@ -77,9 +75,8 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
-        // TODO: More efficent way to use this amount?
-        uint256 cachedFrom = fromAmount;
-
+        // NOTE: Use amountOut to reduce declaration of additional variable
+        amountOut = fromAmount;
         for (uint256 i = 0; i < path.length - 1; ) {
             {
                 address fromToken = path[i];
@@ -93,9 +90,9 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
                     (reserveA, reserveB) = (reserveB, reserveA);
 
                 amounts[i] =
-                    ((cachedFrom * 997) * reserveB) /
-                    ((reserveA * 1000) + (cachedFrom * 997));
-                cachedFrom = amounts[i];
+                    ((amountOut * 997) * reserveB) /
+                    ((reserveA * 1000) + (amountOut * 997));
+                amountOut = amounts[i];
             }
 
             unchecked {
@@ -108,7 +105,35 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
 
         SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
 
-        // NOTE: Abstract into it's own function
+        return _executeSwap(path, pairs, amounts);
+    }
+
+    function _getPair(
+        address tokenA,
+        address tokenB
+    ) internal view returns (address pair) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        pair = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff",
+                            UNISWAP_V2_FORK_FACTORY,
+                            keccak256(abi.encodePacked(tokenA, tokenB)),
+                            hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303" // init code hash
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    function _executeSwap(
+        address[] memory path,
+        address[] memory pairs,
+        uint256[] memory amounts
+    ) internal returns (uint256) {
         bool zeroForOne = path[0] < path[1];
         if (pairs.length > 1) {
             IUniswapPair(pairs[0]).swap(
@@ -145,27 +170,6 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
             );
         }
 
-        amountOut = amounts[amounts.length - 1];
-    }
-
-    function _getPair(
-        address tokenA,
-        address tokenB
-    ) internal view returns (address pair) {
-        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
-        pair = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex"ff",
-                            UNISWAP_V2_FORK_FACTORY,
-                            keccak256(abi.encodePacked(tokenA, tokenB)),
-                            hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303" // init code hash
-                        )
-                    )
-                )
-            )
-        );
+        return amounts[amounts.length - 1];
     }
 }

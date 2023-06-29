@@ -11,19 +11,12 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KCurveZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    address public immutable EARTHQUAKE_VAULT;
     address public immutable WETH_ADDRESS;
     IPermit2 public immutable PERMIT_2;
 
-    constructor(
-        address _earthquakeVault,
-        address _wethAddress,
-        address _permit2
-    ) {
-        if (_earthquakeVault == address(0)) revert InvalidInput();
+    constructor(address _wethAddress, address _permit2) {
         if (_wethAddress == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        EARTHQUAKE_VAULT = _earthquakeVault;
         WETH_ADDRESS = _wethAddress;
         PERMIT_2 = IPermit2(_permit2);
     }
@@ -36,7 +29,8 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         address pool,
         uint256 fromAmount,
         uint256 toAmountMin,
-        uint256 id
+        uint256 id,
+        address vaultAddress
     ) external payable {
         ERC20(fromToken).safeTransferFrom(
             msg.sender,
@@ -66,7 +60,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             );
         }
         if (amountOut == 0) revert InvalidOutput();
-        _deposit(toToken, amountOut, id);
+        _deposit(toToken, amountOut, id, vaultAddress);
     }
 
     function zapInPermit(
@@ -76,6 +70,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         address pool,
         uint256 toAmountMin,
         uint256 id,
+        address vaultAddress,
         PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
@@ -104,38 +99,44 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             );
         }
         if (amountOut == 0) revert InvalidOutput();
-        _deposit(toToken, amountOut, id);
+        _deposit(toToken, amountOut, id, vaultAddress);
     }
 
     // NOTE: Logic has to be abstract to avoid stack too deep errors
-    function zapInMulti(
-        address[] calldata path,
-        address[] calldata pools,
-        uint256[] calldata iValues,
-        uint256[] calldata jValues,
-        uint256 fromAmount,
-        uint256 toAmountMin,
-        uint256 id
-    ) external {
-        ERC20(path[0]).safeTransferFrom(msg.sender, address(this), fromAmount);
-        uint256 amountOut = _multiSwap(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount
-        );
-        if (amountOut < toAmountMin) revert InvalidOutput();
-        if (amountOut == 0) revert InvalidOutput();
-        _deposit(path[path.length - 1], amountOut, id);
-    }
-
     struct MultiSwapInfo {
         address[] path;
         address[] pools;
         uint256[] iValues;
         uint256[] jValues;
         uint256 toAmountMin;
+        address vaultAddress;
+    }
+
+    function zapInMulti(
+        uint256 fromAmount,
+        uint256 id,
+        MultiSwapInfo calldata multiSwapInfo
+    ) external {
+        ERC20(multiSwapInfo.path[0]).safeTransferFrom(
+            msg.sender,
+            address(this),
+            fromAmount
+        );
+        uint256 amountOut = _multiSwap(
+            multiSwapInfo.path,
+            multiSwapInfo.pools,
+            multiSwapInfo.iValues,
+            multiSwapInfo.jValues,
+            fromAmount,
+            multiSwapInfo.toAmountMin
+        );
+        if (amountOut == 0) revert InvalidOutput();
+        _deposit(
+            multiSwapInfo.path[multiSwapInfo.path.length - 1],
+            amountOut,
+            id,
+            multiSwapInfo.vaultAddress
+        );
     }
 
     function zapInMultiPermit(
@@ -151,55 +152,57 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             multiSwapInfo.pools,
             multiSwapInfo.iValues,
             multiSwapInfo.jValues,
-            transferDetails.requestedAmount
+            transferDetails.requestedAmount,
+            multiSwapInfo.toAmountMin
         );
 
-        if (amountOut < multiSwapInfo.toAmountMin) revert InvalidOutput();
         if (amountOut == 0) revert InvalidOutput();
         _deposit(
             multiSwapInfo.path[multiSwapInfo.path.length - 1],
             amountOut,
-            id
+            id,
+            multiSwapInfo.vaultAddress
         );
     }
 
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
-
-    // TODO: Assumes the final swap is to ETH
     function _multiSwap(
-        address[] calldata path,
-        address[] calldata pools,
-        uint256[] calldata iValues,
-        uint256[] calldata jValues,
-        uint256 fromAmount
+        address[] memory path,
+        address[] memory pools,
+        uint256[] memory iValues,
+        uint256[] memory jValues,
+        uint256 fromAmount,
+        uint256 toAmountMin
     ) private returns (uint256 amountOut) {
         amountOut = fromAmount;
-        for (uint256 i = 0; i < pools.length - 1; ) {
-            amountOut = _swap(
-                path[i],
-                path[i + 1],
-                pools[i],
-                int128(int256(iValues[i])),
-                int128(int256(jValues[i])),
-                amountOut,
-                0
-            );
+        for (uint256 i = 0; i < pools.length; ) {
+            if (path[i + 1] != WETH_ADDRESS) {
+                amountOut = _swap(
+                    path[i],
+                    path[i + 1],
+                    pools[i],
+                    int128(int256(iValues[i])),
+                    int128(int256(jValues[i])),
+                    amountOut,
+                    i == pools.length - 1 ? toAmountMin : 0
+                );
+            } else {
+                amountOut = _swapEth(
+                    path[i],
+                    WETH_ADDRESS,
+                    pools[i],
+                    iValues[i],
+                    jValues[i],
+                    amountOut,
+                    i == pools.length - 1 ? toAmountMin : 0
+                );
+            }
             unchecked {
                 i++;
             }
         }
-        return
-            _swapEth(
-                path[path.length - 2],
-                path[path.length - 1],
-                pools[pools.length - 1],
-                iValues[pools.length - 1],
-                jValues[pools.length - 1],
-                amountOut,
-                0
-            );
     }
 
     function _swap(
@@ -209,12 +212,11 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         int128 i,
         int128 j,
         uint256 fromAmount,
-        uint256 toAmountIn
+        uint256 toAmountMin
     ) private returns (uint256) {
         ERC20(fromToken).safeApprove(pool, fromAmount);
         uint256 cachedBalance = ERC20(toToken).balanceOf(address(this));
-        // TODO: Check if this works when swapping with ETH pools + compatibility due to int128 conversions?
-        ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn);
+        ICurvePair(pool).exchange(i, j, fromAmount, toAmountMin);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
 
         return fromAmount;
@@ -227,19 +229,23 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         uint256 i,
         uint256 j,
         uint256 fromAmount,
-        uint256 toAmountIn
+        uint256 toAmountMin
     ) private returns (uint256) {
         ERC20(fromToken).safeApprove(pool, fromAmount);
         uint256 cachedBalance = ERC20(toToken).balanceOf(address(this));
-        // TODO: Check if this works when swapping with ETH pools + compatibility due to int128 conversions?
-        ICurvePair(pool).exchange(i, j, fromAmount, toAmountIn, false);
+        ICurvePair(pool).exchange(i, j, fromAmount, toAmountMin, false);
         fromAmount = ERC20(toToken).balanceOf(address(this)) - cachedBalance;
 
         return fromAmount;
     }
 
-    function _deposit(address fromToken, uint256 amountIn, uint256 id) private {
-        ERC20(fromToken).safeApprove(EARTHQUAKE_VAULT, amountIn);
-        IEarthquake(EARTHQUAKE_VAULT).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
+    function _deposit(
+        address fromToken,
+        uint256 amountIn,
+        uint256 id,
+        address vaultAddress
+    ) private {
+        ERC20(fromToken).safeApprove(vaultAddress, amountIn);
+        IEarthquake(vaultAddress).deposit(id, amountIn, msg.sender); // NOTE: Could take receiver input
     }
 }

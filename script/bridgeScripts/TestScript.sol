@@ -3,9 +3,9 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import "../test/utils/Helper.sol";
-import "../src/bridgeZaps/zapDest.sol";
-import "../src/bridgeZaps/zapFrom.sol";
+import "../../test/utils/Helper.sol";
+import "../../src/bridgeZaps/zapDest.sol";
+import "../../src/bridgeZaps/zapFrom.sol";
 
 contract TestLzScript is Script, Helper {
     address zapDestArb = 0x9c668A934611706F84f5B22705eCDF94C3349c5d;

@@ -5,11 +5,13 @@ import "forge-std/Test.sol";
 import {Helper} from "./Helper.sol";
 import {ZapDest} from "../../src/bridgeZaps/zapDest.sol";
 import {ZapFrom} from "../../src/bridgeZaps/zapFrom.sol";
+import {PermitUtils} from "./PermitUtils.sol";
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IEarthQuakeVault, IERC1155} from "../utils/Interfaces.sol";
+import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
 
-contract BridgeHelper is Helper {
+contract BridgeHelper is Helper, PermitUtils {
     address stargateRelayer;
     address stargateRelayerEth;
     address layerZeroRelayer;
@@ -65,21 +67,6 @@ contract BridgeHelper is Helper {
             SECONDARY_INIT_HASH_ARB
         );
 
-        address stargateRelayer2 = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
-        address stargateRelayerEth2 = 0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
-        bytes memory encodedConstructor = abi.encode(
-            stargateRelayer2,
-            stargateRelayerEth2,
-            LAYER_ZERO_ROUTER_REMOTE,
-            CELER_BRIDGE,
-            HYPHEN_BRIDGE,
-            CAMELOT_FACTORY,
-            SUSHI_V2_FACTORY,
-            UNISWAP_V3_FACTORY,
-            PRIMARY_INIT_HASH_ARB,
-            SECONDARY_INIT_HASH_ARB
-        );
-        console.logBytes(encodedConstructor);
         zapDest.whitelistVault(EARTHQUAKE_VAULT);
         zapDest.whitelistVault(EARTHQUAKE_VAULT_V2);
 
@@ -107,12 +94,14 @@ contract BridgeHelper is Helper {
                 UNISWAP_V3_FACTORY,
                 BALANCER_VAULT,
                 WETH_ADDRESS_ETH,
+                PERMIT_2,
                 PRIMARY_INIT_HASH_ETH,
                 SECONDARY_INIT_HASH_ETH
             )
         );
 
         vm.label(address(0x01), "Sender");
+        vm.label(permitSender, "PermitSender");
         vm.label(address(0x02), "SecondSender");
         vm.label(address(0x03), "ThirdSender");
         vm.label(USDC_ADDRESS_ETH, "USDC");
@@ -121,6 +110,24 @@ contract BridgeHelper is Helper {
         vm.label(address(zapFrom), "ZapFrom");
         vm.label(STARGATE_ROUTER, "STG ERC20");
         vm.label(STARGATE_ROUTER_USINGETH, "STG ETH");
+
+        permitSender = vm.addr(permitSenderKey);
+        permitReceiver = vm.addr(permitReceiverKey);
+        vm.label(permitSender, "PermitSender");
+        vm.label(permitReceiver, "PermitReceiver");
+
+        setERC20TestTokenApprovals(vm, permitReceiver, PERMIT_2);
+    }
+
+    function setERC20TestTokenApprovals(
+        Vm vm,
+        address owner,
+        address spender
+    ) public {
+        vm.startPrank(owner);
+        IERC20(USDC_ADDRESS_ETH).approve(spender, type(uint256).max);
+        IERC20(WETH_ADDRESS_ETH).approve(spender, type(uint256).max);
+        vm.stopPrank();
     }
 
     /////////////////////////////////////////
@@ -360,5 +367,28 @@ contract BridgeHelper is Helper {
         tokens[0] = _toToken;
         bridges[0] = _bridge;
         zapDest.setTokenToHopBridge(tokens, bridges);
+    }
+
+    /////////////////////////////////////////
+    //        PERMIT SWAP HELPERS           //
+    /////////////////////////////////////////
+    function setupPermitSwap(
+        address receiver,
+        address spender,
+        uint256 fromAmount,
+        address token
+    )
+        public
+        view
+        returns (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        )
+    {
+        uint256 nonce = 0;
+        permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
+        transferDetails = getTransferDetails(receiver, fromAmount);
+        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
     }
 }

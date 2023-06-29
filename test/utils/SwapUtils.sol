@@ -51,42 +51,21 @@ contract SwapHelper is Helper, PermitUtils {
         vm.warp(EPOCH_BEGIN - 1);
         // vm.roll(90815015);
 
-        zapCamelot = new Y2KCamelotZap(
-            CAMELOT_FACTORY,
-            EARTHQUAKE_VAULT,
-            PERMIT_2
-        ); // Earthquake Vault | DAI RISK
-        zapSushiV2 = new Y2KUniswapV2Zap(
-            SUSHI_V2_FACTORY,
-            EARTHQUAKE_VAULT,
-            PERMIT_2
-        ); // Earthquake Vault | DAI RISK
-        zapBalancer = new Y2KBalancerZap(
-            BALANCER_VAULT,
-            EARTHQUAKE_VAULT,
-            PERMIT_2
-        ); // Earthquake Vault | DAI RISK
-        zapUniswapV3 = new Y2KUniswapV3Zap(
-            UNISWAP_V3_FACTORY,
-            EARTHQUAKE_VAULT,
-            PERMIT_2
-        );
-        zapCurve = new Y2KCurveZap(EARTHQUAKE_VAULT, WETH_ADDRESS, PERMIT_2);
-        zapCurveUSDT = new Y2KCurveZap(
-            EARTHQUAKE_VAULT_USDT,
-            WETH_ADDRESS,
-            PERMIT_2
-        );
-        zapGMX = new Y2KGMXZap(GMX_VAULT, EARTHQUAKE_VAULT, PERMIT_2);
+        zapCamelot = new Y2KCamelotZap(CAMELOT_FACTORY, PERMIT_2); // Earthquake Vault | DAI RISK
+        zapSushiV2 = new Y2KUniswapV2Zap(SUSHI_V2_FACTORY, PERMIT_2); // Earthquake Vault | DAI RISK
+        zapBalancer = new Y2KBalancerZap(BALANCER_VAULT, PERMIT_2); // Earthquake Vault | DAI RISK
+        zapUniswapV3 = new Y2KUniswapV3Zap(UNISWAP_V3_FACTORY, PERMIT_2);
+        zapCurve = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2);
+        zapCurveUSDT = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2); // TODO: Remove this as vaults take custom now
+        zapGMX = new Y2KGMXZap(GMX_VAULT, PERMIT_2);
         zapTraderJoe = new Y2KTraderJoeZap(
             TJ_LEGACY_FACTORY,
             TJ_FACTORY,
-            TJ_FACTORY_V1,
-            EARTHQUAKE_VAULT
+            TJ_FACTORY_V1
         );
 
         // NOTE: Need to dynamically provide the INIT CODE HASH and find the factory for Chronos
-        zapChronos = new Y2KChronosZap(CHRONOS_FACTORY, EARTHQUAKE_VAULT); // Earthquake Vault | DAI RISK
+        zapChronos = new Y2KChronosZap(CHRONOS_FACTORY); // Earthquake Vault | DAI RISK
 
         vm.label(address(0x01), "Sender");
         vm.label(USDC_ADDRESS, "USDC");
@@ -109,8 +88,8 @@ contract SwapHelper is Helper, PermitUtils {
 
         permitSender = vm.addr(permitSenderKey);
         permitReceiver = vm.addr(permitReceiverKey);
-        vm.label(permitSender, "PermitReceiver");
-        vm.label(permitReceiver, "PermitSender");
+        vm.label(permitSender, "PermitSender");
+        vm.label(permitReceiver, "PermitReceiver");
 
         setERC20TestTokenApprovals(vm, permitSender, PERMIT_2);
     }

@@ -19,7 +19,7 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapCamelot));
 
-        zapCamelot.zapIn(path, fromAmount, toAmountMin, id);
+        zapCamelot.zapIn(path, fromAmount, toAmountMin, id, EARTHQUAKE_VAULT);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -34,7 +34,7 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupDAItoUSDCtoUSDTtoWETHV2Fork(address(zapCamelot));
 
-        zapCamelot.zapIn(path, fromAmount, toAmountMin, id);
+        zapCamelot.zapIn(path, fromAmount, toAmountMin, id, EARTHQUAKE_VAULT);
         assertEq(IERC20(DAI_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -49,7 +49,7 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapSushiV2));
 
-        zapSushiV2.zapIn(path, fromAmount, toAmountMin, id);
+        zapSushiV2.zapIn(path, fromAmount, toAmountMin, id, EARTHQUAKE_VAULT);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -64,7 +64,7 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupWETHtoUSDCtoUSDTtoWETHV2Fork(address(zapSushiV2));
 
-        zapSushiV2.zapIn(path, fromAmount, toAmountMin, id);
+        zapSushiV2.zapIn(path, fromAmount, toAmountMin, id, EARTHQUAKE_VAULT);
         assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -80,7 +80,14 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupUSDCtoUSDTtoWETHV3(address(zapUniswapV3));
 
-        zapUniswapV3.zapIn(path, fee, fromAmount, toAmountMin, id);
+        zapUniswapV3.zapIn(
+            path,
+            fee,
+            fromAmount,
+            toAmountMin,
+            id,
+            EARTHQUAKE_VAULT
+        );
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -96,7 +103,14 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupDAItoUSDCtoUSDTtoWETHV3(address(zapUniswapV3));
 
-        zapUniswapV3.zapIn(path, fee, fromAmount, toAmountMin, id);
+        zapUniswapV3.zapIn(
+            path,
+            fee,
+            fromAmount,
+            toAmountMin,
+            id,
+            EARTHQUAKE_VAULT
+        );
         assertEq(IERC20(DAI_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -113,7 +127,15 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupUSDTtoUSDCtoWETHBalancer(address(zapBalancer), sender);
 
-        zapBalancer.zapInMulti(kind, batchSwap, assets, limits, deadline, id);
+        zapBalancer.zapInMulti(
+            kind,
+            batchSwap,
+            assets,
+            limits,
+            deadline,
+            id,
+            EARTHQUAKE_VAULT
+        );
         assertEq(IERC20(USDT_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -130,7 +152,15 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupDUSDtoUSDTtoUSDCtoWETHBalancer(address(zapBalancer));
 
-        zapBalancer.zapInMulti(kind, batchSwap, assets, limits, deadline, id);
+        zapBalancer.zapInMulti(
+            kind,
+            batchSwap,
+            assets,
+            limits,
+            deadline,
+            id,
+            EARTHQUAKE_VAULT
+        );
         assertEq(IERC20(DUSD_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -152,15 +182,15 @@ contract ZapSwapMultiTest is SwapHelper {
                 sender
             );
 
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            toAmountMin,
-            id
-        );
+        Y2KCurveZap.MultiSwapInfo memory multiSwapInfo;
+        multiSwapInfo.path = path;
+        multiSwapInfo.pools = pools;
+        multiSwapInfo.iValues = iValues;
+        multiSwapInfo.jValues = jValues;
+        multiSwapInfo.toAmountMin = toAmountMin;
+        multiSwapInfo.vaultAddress = EARTHQUAKE_VAULT_USDT;
+
+        zapCurveUSDT.zapInMulti(fromAmount, id, multiSwapInfo);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -181,15 +211,15 @@ contract ZapSwapMultiTest is SwapHelper {
                 EARTHQUAKE_VAULT_USDT
             );
 
-        zapCurveUSDT.zapInMulti(
-            path,
-            pools,
-            iValues,
-            jValues,
-            fromAmount,
-            toAmountMin,
-            id
-        );
+        Y2KCurveZap.MultiSwapInfo memory multiSwapInfo;
+        multiSwapInfo.path = path;
+        multiSwapInfo.pools = pools;
+        multiSwapInfo.iValues = iValues;
+        multiSwapInfo.jValues = jValues;
+        multiSwapInfo.toAmountMin = toAmountMin;
+        multiSwapInfo.vaultAddress = EARTHQUAKE_VAULT_USDT;
+
+        zapCurveUSDT.zapInMulti(fromAmount, id, multiSwapInfo);
         assertEq(IERC20(FRAX_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT_USDT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -204,7 +234,7 @@ contract ZapSwapMultiTest is SwapHelper {
             uint256 id
         ) = setupUSDCtoUSDTtoWETHV2Fork(address(zapGMX)); // NOTE: Uses the same inputs as V2 forks
 
-        zapGMX.zapIn(path, fromAmount, toAmountMin, id);
+        zapGMX.zapIn(path, fromAmount, toAmountMin, id, EARTHQUAKE_VAULT);
         assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 0);
         assertGe(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 1);
         vm.stopPrank();
@@ -240,6 +270,7 @@ contract ZapSwapMultiTest is SwapHelper {
             assets,
             limits,
             id,
+            EARTHQUAKE_VAULT,
             permit,
             transferDetails,
             sig
@@ -281,6 +312,7 @@ contract ZapSwapMultiTest is SwapHelper {
         multiSwapInfo.iValues = iValues;
         multiSwapInfo.jValues = jValues;
         multiSwapInfo.toAmountMin = toAmountMin;
+        multiSwapInfo.vaultAddress = EARTHQUAKE_VAULT_USDT;
 
         zapCurveUSDT.zapInMultiPermit(
             id,
