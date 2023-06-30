@@ -29,44 +29,44 @@ contract ZapTests is SwapHelper {
     //               STATE VARS            //
     /////////////////////////////////////////
 
-    function testStateVars_Camelotet() public {
-        assertEq(zapCamelot.CAMELOT_V2_FACTORY(), CAMELOT_FACTORY);
-        assertEq(address(zapCamelot.PERMIT_2()), PERMIT_2);
+    function testStateVars_Camelot() public {
+        assertEq(zapCamelot.camelotV2Factory(), CAMELOT_FACTORY);
+        assertEq(address(zapCamelot.permit2()), PERMIT_2);
     }
 
     function testStateVars_Sushi() public {
-        assertEq(zapSushiV2.UNISWAP_V2_FORK_FACTORY(), SUSHI_V2_FACTORY);
-        assertEq(address(zapSushiV2.PERMIT_2()), PERMIT_2);
+        assertEq(zapSushiV2.uniswapV2ForkFactory(), SUSHI_V2_FACTORY);
+        assertEq(address(zapSushiV2.permit2()), PERMIT_2);
     }
 
     function testStateVars_Balancer() public {
-        assertEq(address(zapBalancer.BALANCER_VAULT()), BALANCER_VAULT);
-        assertEq(address(zapBalancer.PERMIT_2()), PERMIT_2);
+        assertEq(address(zapBalancer.balancerVault()), BALANCER_VAULT);
+        assertEq(address(zapBalancer.permit2()), PERMIT_2);
     }
 
     function testStateVars_UniswapV3() public {
-        assertEq(zapUniswapV3.UNISWAP_V3_FACTORY(), UNISWAP_V3_FACTORY);
-        assertEq(address(zapUniswapV3.PERMIT_2()), PERMIT_2);
+        assertEq(zapUniswapV3.uniswapV3Factory(), UNISWAP_V3_FACTORY);
+        assertEq(address(zapUniswapV3.permit2()), PERMIT_2);
     }
 
     function testStateVars_Curve() public {
-        assertEq(address(zapCurve.PERMIT_2()), PERMIT_2);
-        assertEq(zapCurve.WETH_ADDRESS(), WETH_ADDRESS);
+        assertEq(address(zapCurve.permit2()), PERMIT_2);
+        assertEq(zapCurve.wethAddress(), WETH_ADDRESS);
     }
 
     function testStateVars_GMX() public {
-        assertEq(address(zapGMX.GMX_VAULT()), GMX_VAULT);
-        assertEq(address(zapGMX.PERMIT_2()), PERMIT_2);
+        assertEq(address(zapGMX.gmxVault()), GMX_VAULT);
+        assertEq(address(zapGMX.permit2()), PERMIT_2);
     }
 
     function testStateVars_TraderJoe() public {
-        assertEq(address(zapTraderJoe.LEGACY_FACTORY()), TJ_LEGACY_FACTORY);
-        assertEq(address(zapTraderJoe.FACTORY()), TJ_FACTORY);
-        assertEq(address(zapTraderJoe.FACTORY_V1()), TJ_FACTORY_V1);
+        assertEq(address(zapTraderJoe.legacyFactory()), TJ_LEGACY_FACTORY);
+        assertEq(address(zapTraderJoe.factory()), TJ_FACTORY);
+        assertEq(address(zapTraderJoe.factoryV1()), TJ_FACTORY_V1);
     }
 
     function testStateVars_Chronos() public {
-        assertEq(zapChronos.UNISWAP_V2_FORK_FACTORY(), CHRONOS_FACTORY);
+        assertEq(zapChronos.chronosFactory(), CHRONOS_FACTORY);
     }
 
     /////////////////////////////////////////

@@ -11,14 +11,14 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    address public immutable UNISWAP_V2_FORK_FACTORY;
-    IPermit2 public immutable PERMIT_2;
+    address public immutable uniswapV2ForkFactory;
+    IPermit2 public immutable permit2;
 
     constructor(address _sushiV2Factory, address _permit2) {
         if (_sushiV2Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        UNISWAP_V2_FORK_FACTORY = _sushiV2Factory;
-        PERMIT_2 = IPermit2(_permit2);
+        uniswapV2ForkFactory = _sushiV2Factory;
+        permit2 = IPermit2(_permit2);
     }
 
     /////////////////////////////////////////
@@ -47,7 +47,7 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(
             path,
             transferDetails.requestedAmount,
@@ -122,7 +122,7 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            UNISWAP_V2_FORK_FACTORY,
+                            uniswapV2ForkFactory,
                             keccak256(abi.encodePacked(tokenA, tokenB)),
                             hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303" // init code hash
                         )

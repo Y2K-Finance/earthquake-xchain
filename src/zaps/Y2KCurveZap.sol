@@ -11,14 +11,25 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KCurveZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    address public immutable WETH_ADDRESS;
-    IPermit2 public immutable PERMIT_2;
+    address public immutable wethAddress;
+    IPermit2 public immutable permit2;
+
+    // NOTE: Inputs for permitMulti need to be struct to avoid stack too deep
+    struct MultiSwapInfo {
+        address[] path;
+        address[] pools;
+        uint256[] iValues;
+        uint256[] jValues;
+        uint256 toAmountMin;
+        address vaultAddress;
+        address receiver;
+    }
 
     constructor(address _wethAddress, address _permit2) {
         if (_wethAddress == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        WETH_ADDRESS = _wethAddress;
-        PERMIT_2 = IPermit2(_permit2);
+        wethAddress = _wethAddress;
+        permit2 = IPermit2(_permit2);
     }
 
     function zapIn(
@@ -39,7 +50,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             fromAmount
         );
         uint256 amountOut;
-        if (toToken == WETH_ADDRESS) {
+        if (toToken == wethAddress) {
             amountOut = _swapEth(
                 fromToken,
                 toToken,
@@ -77,9 +88,9 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut;
-        if (toToken == WETH_ADDRESS) {
+        if (toToken == wethAddress) {
             amountOut = _swapEth(
                 permit.permitted.token,
                 toToken,
@@ -104,17 +115,6 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         _deposit(toToken, amountOut, id, vaultAddress, receiver);
     }
 
-    // NOTE: Logic has to be abstract to avoid stack too deep errors
-    struct MultiSwapInfo {
-        address[] path;
-        address[] pools;
-        uint256[] iValues;
-        uint256[] jValues;
-        uint256 toAmountMin;
-        address vaultAddress;
-        address receiver;
-    }
-
     function zapInMulti(
         uint256 fromAmount,
         uint256 id,
@@ -133,7 +133,6 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             fromAmount,
             multiSwapInfo.toAmountMin
         );
-        if (amountOut == 0) revert InvalidOutput();
         _deposit(
             multiSwapInfo.path[multiSwapInfo.path.length - 1],
             amountOut,
@@ -150,7 +149,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _multiSwap(
             multiSwapInfo.path,
             multiSwapInfo.pools,
@@ -159,8 +158,6 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             transferDetails.requestedAmount,
             multiSwapInfo.toAmountMin
         );
-
-        if (amountOut == 0) revert InvalidOutput();
         _deposit(
             multiSwapInfo.path[multiSwapInfo.path.length - 1],
             amountOut,
@@ -183,7 +180,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
     ) private returns (uint256 amountOut) {
         amountOut = fromAmount;
         for (uint256 i = 0; i < pools.length; ) {
-            if (path[i + 1] != WETH_ADDRESS) {
+            if (path[i + 1] != wethAddress) {
                 amountOut = _swap(
                     path[i],
                     path[i + 1],
@@ -196,7 +193,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
             } else {
                 amountOut = _swapEth(
                     path[i],
-                    WETH_ADDRESS,
+                    wethAddress,
                     pools[i],
                     iValues[i],
                     jValues[i],
@@ -208,6 +205,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
                 i++;
             }
         }
+        if (amountOut == 0) revert InvalidOutput();
     }
 
     function _swap(
@@ -252,6 +250,6 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         address receiver
     ) private {
         ERC20(fromToken).safeApprove(vaultAddress, amountIn);
-        IEarthquake(vaultAddress).deposit(id, amountIn, receiver); // NOTE: Could take receiver input
+        IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 }

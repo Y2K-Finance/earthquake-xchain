@@ -196,7 +196,7 @@ contract ZapSwapSingleTest is SwapHelper {
 
     // NOTE: Overflowing in the _k function
     // Pair address: https://arbiscan.io/address/0xA2F1C1B52E1b7223825552343297Dc68a29ABecC#code
-    function test_SwapAndDepositChronos() private {
+    function test_SwapAndDepositChronos() public {
         vm.startPrank(sender);
         (
             address[] memory path,

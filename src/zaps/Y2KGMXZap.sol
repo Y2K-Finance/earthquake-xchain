@@ -11,14 +11,14 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KGMXZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    IGMXVault public immutable GMX_VAULT;
-    IPermit2 public immutable PERMIT_2;
+    IGMXVault public immutable gmxVault;
+    IPermit2 public immutable permit2;
 
     constructor(address _gmxVault, address _permit2) {
         if (_gmxVault == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        GMX_VAULT = IGMXVault(_gmxVault);
-        PERMIT_2 = IPermit2(_permit2);
+        gmxVault = IGMXVault(_gmxVault);
+        permit2 = IPermit2(_permit2);
     }
 
     function zapIn(
@@ -31,7 +31,7 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
     ) external {
         ERC20(path[0]).safeTransferFrom(
             msg.sender,
-            address(GMX_VAULT),
+            address(gmxVault),
             fromAmount
         );
         uint256 amountOut = _swap(path, toAmountMin);
@@ -48,7 +48,7 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(path, toAmountMin);
         _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
@@ -71,10 +71,10 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         address[] calldata path,
         uint256 toAmountMin
     ) private returns (uint256 amountOut) {
-        amountOut = GMX_VAULT.swap(path[0], path[1], address(this));
+        amountOut = gmxVault.swap(path[0], path[1], address(this));
         if (path.length == 3) {
-            ERC20(path[1]).safeTransfer(address(GMX_VAULT), amountOut);
-            amountOut = GMX_VAULT.swap(path[1], path[2], address(this));
+            ERC20(path[1]).safeTransfer(address(gmxVault), amountOut);
+            amountOut = gmxVault.swap(path[1], path[2], address(this));
         }
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
     }

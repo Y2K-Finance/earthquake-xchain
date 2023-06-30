@@ -23,8 +23,8 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     bytes32 internal constant POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
-    address public immutable UNISWAP_V3_FACTORY;
-    IPermit2 public immutable PERMIT_2;
+    address public immutable uniswapV3Factory;
+    IPermit2 public immutable permit2;
 
     struct SwapInputs {
         address[] path;
@@ -38,8 +38,8 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     constructor(address _uniswapV3Factory, address _permit2) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        UNISWAP_V3_FACTORY = _uniswapV3Factory;
-        PERMIT_2 = IPermit2(_permit2);
+        uniswapV3Factory = _uniswapV3Factory;
+        permit2 = IPermit2(_permit2);
     }
 
     /////////////////////////////////////////
@@ -66,13 +66,12 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(
             inputs.path,
             inputs.fee,
             transferDetails.requestedAmount
         );
-
         if (amountOut < inputs.toAmountMin) revert InvalidMinOut(amountOut);
         _deposit(
             inputs.path[inputs.path.length - 1],
@@ -152,7 +151,6 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         uint24 fee
     ) private returns (uint256) {
         bool zeroForOne = tokenIn < tokenOut;
-
         if (zeroForOne) {
             (, int256 amountOut) = IUniswapV3Pool(
                 getPool(tokenIn, tokenOut, fee)
@@ -190,7 +188,7 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            UNISWAP_V3_FACTORY,
+                            uniswapV3Factory,
                             keccak256(abi.encode(tokenA, tokenB, fee)),
                             POOL_INIT_CODE_HASH
                         )

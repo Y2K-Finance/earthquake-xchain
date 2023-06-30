@@ -9,11 +9,11 @@ import {IErrors} from "../interfaces/IErrors.sol";
 
 contract Y2KChronosZap is IErrors {
     using SafeTransferLib for ERC20;
-    address public immutable UNISWAP_V2_FORK_FACTORY;
+    address public immutable chronosFactory;
 
-    constructor(address _sushiV2Factory) {
-        if (_sushiV2Factory == address(0)) revert InvalidInput();
-        UNISWAP_V2_FORK_FACTORY = _sushiV2Factory;
+    constructor(address _chronosFactory) {
+        if (_chronosFactory == address(0)) revert InvalidInput();
+        chronosFactory = _chronosFactory;
     }
 
     function zapIn(
@@ -119,7 +119,7 @@ contract Y2KChronosZap is IErrors {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            UNISWAP_V2_FORK_FACTORY,
+                            chronosFactory,
                             keccak256(abi.encodePacked(tokenA, tokenB, stable)),
                             hex"aaa43c87f3037d1e2148d80ef564bf86472a4ce2550ce64b7ed456ccaf3f7964" // init code hash
                         )

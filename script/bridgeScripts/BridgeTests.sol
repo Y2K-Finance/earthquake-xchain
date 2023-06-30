@@ -7,7 +7,7 @@ import "../../test/utils/Helper.sol";
 import "../../src/bridgeZaps/zapDest.sol";
 import "../../src/bridgeZaps/zapFrom.sol";
 
-contract TestLzScript is Script, Helper {
+contract BridgeTestScript is Script, Helper {
     address zapDestArb = 0x9c668A934611706F84f5B22705eCDF94C3349c5d;
     address zapFromEth = 0x71dcb9Ad1ddf4476B2F550Bc2a8544bD350CE0DE;
     address receiver = 0x2d244ed7d17AE47886f7f13F53e74b6B0bC16fdC;

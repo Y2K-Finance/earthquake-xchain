@@ -11,14 +11,14 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KCamelotZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    address public immutable CAMELOT_V2_FACTORY;
-    IPermit2 public immutable PERMIT_2;
+    address public immutable camelotV2Factory;
+    IPermit2 public immutable permit2;
 
     constructor(address _uniswapV2Factory, address _permit2) {
         if (_uniswapV2Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        CAMELOT_V2_FACTORY = _uniswapV2Factory;
-        PERMIT_2 = IPermit2(_permit2);
+        camelotV2Factory = _uniswapV2Factory;
+        permit2 = IPermit2(_permit2);
     }
 
     /////////////////////////////////////////
@@ -47,7 +47,7 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 amountOut = _swap(
             path,
             transferDetails.requestedAmount,
@@ -74,7 +74,7 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         address[] calldata path,
         uint256 fromAmount,
         uint256 toAmountMin
-    ) internal returns (uint256 amountOut) {
+    ) private returns (uint256 amountOut) {
         uint256[] memory amounts = new uint256[](path.length - 1);
         address[] memory pairs = new address[](path.length - 1);
 
@@ -124,7 +124,7 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
                     keccak256(
                         abi.encodePacked(
                             hex"ff",
-                            CAMELOT_V2_FACTORY,
+                            camelotV2Factory,
                             keccak256(abi.encodePacked(tokenA, tokenB)),
                             hex"a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1" // init code hash
                         )

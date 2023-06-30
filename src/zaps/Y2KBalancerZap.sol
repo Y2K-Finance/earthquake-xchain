@@ -11,14 +11,14 @@ import {IPermit2} from "../interfaces/IPermit2.sol";
 
 contract Y2KBalancerZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
-    IBalancerVault public immutable BALANCER_VAULT;
-    IPermit2 public immutable PERMIT_2;
+    IBalancerVault public immutable balancerVault;
+    IPermit2 public immutable permit2;
 
     constructor(address _balancerVault, address _permit2) {
         if (_balancerVault == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
-        BALANCER_VAULT = IBalancerVault(_balancerVault);
-        PERMIT_2 = IPermit2(_permit2);
+        balancerVault = IBalancerVault(_balancerVault);
+        permit2 = IPermit2(_permit2);
     }
 
     function zapIn(
@@ -35,10 +35,10 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             fromAmount
         );
         ERC20(singleSwap.assetIn).safeApprove(
-            address(BALANCER_VAULT),
+            address(balancerVault),
             fromAmount
         );
-        uint256 amountOut = BALANCER_VAULT.swap(
+        uint256 amountOut = balancerVault.swap(
             singleSwap,
             IBalancerVault.Funds({
                 sender: address(this),
@@ -62,12 +62,12 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         ERC20(permit.permitted.token).safeApprove(
-            address(BALANCER_VAULT),
+            address(balancerVault),
             transferDetails.requestedAmount
         );
-        uint256 amountOut = BALANCER_VAULT.swap(
+        uint256 amountOut = balancerVault.swap(
             singleSwap,
             IBalancerVault.Funds({
                 sender: address(this),
@@ -98,8 +98,8 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
             address(this),
             fromAmount
         );
-        ERC20(fromToken).safeApprove(address(BALANCER_VAULT), fromAmount);
-        int256[] memory assetDeltas = BALANCER_VAULT.batchSwap(
+        ERC20(fromToken).safeApprove(address(balancerVault), fromAmount);
+        int256[] memory assetDeltas = balancerVault.batchSwap(
             kind,
             swaps,
             assets,
@@ -116,7 +116,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         _deposit(
             assets[assets.length - 1],
             id,
-            amountOut,
+            amountOut, // TODO: Could just use deconstructed amountOut as input
             vaultAddress,
             receiver
         );
@@ -134,12 +134,12 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
-        PERMIT_2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
+        permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         ERC20(permit.permitted.token).safeApprove(
-            address(BALANCER_VAULT),
+            address(balancerVault),
             transferDetails.requestedAmount
         );
-        int256[] memory assetDeltas = BALANCER_VAULT.batchSwap(
+        int256[] memory assetDeltas = balancerVault.batchSwap(
             kind,
             swaps,
             assets,
@@ -156,7 +156,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         _deposit(
             assets[assets.length - 1],
             id,
-            amountOut,
+            amountOut, // TODO: Could just use deconstructed amountOut as input
             vaultAddress,
             receiver
         );

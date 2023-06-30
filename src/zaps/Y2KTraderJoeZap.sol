@@ -20,9 +20,9 @@ contract Y2KTraderJoeZap is IErrors {
     using SafeERC20 for IERC20;
     using PackedUint128Math for bytes32;
 
-    ILBLegacyFactory public immutable LEGACY_FACTORY;
-    ILBFactory public immutable FACTORY;
-    IJoeFactory public immutable FACTORY_V1;
+    ILBLegacyFactory public immutable legacyFactory;
+    ILBFactory public immutable factory;
+    IJoeFactory public immutable factoryV1;
 
     error InvalidPair(address tokenX, address tokenY, uint256 binStep);
 
@@ -49,13 +49,13 @@ contract Y2KTraderJoeZap is IErrors {
         V2_1
     }
 
-    constructor(address legacyFactory, address factory, address factoryV1) {
-        if (legacyFactory == address(0)) revert InvalidInput();
-        if (factory == address(0)) revert InvalidInput();
-        if (factoryV1 == address(0)) revert InvalidInput();
-        LEGACY_FACTORY = ILBLegacyFactory(legacyFactory);
-        FACTORY = ILBFactory(factory);
-        FACTORY_V1 = IJoeFactory(factoryV1);
+    constructor(address _legacyFactory, address _factory, address _factoryV1) {
+        if (_legacyFactory == address(0)) revert InvalidInput();
+        if (_factory == address(0)) revert InvalidInput();
+        if (_factoryV1 == address(0)) revert InvalidInput();
+        legacyFactory = ILBLegacyFactory(_legacyFactory);
+        factory = ILBFactory(_factory);
+        factoryV1 = IJoeFactory(_factoryV1);
     }
 
     function zapIn(
@@ -171,7 +171,7 @@ contract Y2KTraderJoeZap is IErrors {
         Version version
     ) private view returns (address pair) {
         if (version == Version.V1) {
-            pair = FACTORY_V1.getPair(address(tokenX), address(tokenY));
+            pair = factoryV1.getPair(address(tokenX), address(tokenY));
             if (pair == address(0))
                 revert InvalidPair(address(tokenX), address(tokenY), binStep);
         } else {
@@ -198,13 +198,13 @@ contract Y2KTraderJoeZap is IErrors {
     ) private view returns (address lbPair) {
         if (version == Version.V2) {
             lbPair = address(
-                LEGACY_FACTORY
+                legacyFactory
                     .getLBPairInformation(tokenX, tokenY, binStep)
                     .LBPair
             );
         } else {
             lbPair = address(
-                FACTORY.getLBPairInformation(tokenX, tokenY, binStep).LBPair
+                factory.getLBPairInformation(tokenX, tokenY, binStep).LBPair
             );
         }
 
