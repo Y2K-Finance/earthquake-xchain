@@ -9,6 +9,8 @@ import {ICurvePair} from "../interfaces/dexes/ICurvePair.sol";
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPermit2} from "../interfaces/IPermit2.sol";
 
+/// @title Curve Zap for Y2K Vaults
+/// @notice Tokens can be swapped on Curve and deposited into Y2K vaults
 contract Y2KCurveZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     address public immutable wethAddress;
@@ -25,6 +27,10 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         address receiver;
     }
 
+    /** @notice constructor
+        @param _wethAddress The weth address
+        @param _permit2 The address of the permit2 contract
+    **/
     constructor(address _wethAddress, address _permit2) {
         if (_wethAddress == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
@@ -32,6 +38,18 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         permit2 = IPermit2(_permit2);
     }
 
+    /** @notice Single swap tokens on Curve and deposit into Y2K vault
+        @param fromToken the token to swap from
+        @param toToken the token to swap to
+        @param i the index of the from token in the Curve pool
+        @param j the index of the to token in the Curve pool
+        @param pool the Curve pool to swap on
+        @param fromAmount the amount of from token to swap
+        @param toAmountMin the minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function zapIn(
         address fromToken,
         address toToken,
@@ -75,6 +93,19 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         _deposit(toToken, amountOut, id, vaultAddress, receiver);
     }
 
+    /** @notice Single swap tokens on Curve using permit and deposit into Y2K vault
+        @param toToken the token to swap to
+        @param i the index of the from token in the Curve pool
+        @param j the index of the to token in the Curve pool
+        @param pool the Curve pool to swap on
+        @param toAmountMin the minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInPermit(
         address toToken,
         uint256 i,
@@ -84,7 +115,7 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         uint256 id,
         address vaultAddress,
         address receiver,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
@@ -115,6 +146,11 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         _deposit(toToken, amountOut, id, vaultAddress, receiver);
     }
 
+    /** @notice Multi swap tokens on Curve and deposit into Y2K vault
+        @param fromAmount the amount of from token to swap
+        @param multiSwapInfo Struct containing all the information needed to perform the multi swap
+        @param id The ID of the Y2K vault to deposit into
+    **/
     function zapInMulti(
         uint256 fromAmount,
         uint256 id,
@@ -142,10 +178,17 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         );
     }
 
+    /** @notice Multi swap tokens on Curve using permit and deposit into Y2K vault
+        @param id The ID of the Y2K vault to deposit into
+        @param multiSwapInfo Struct containing all the information needed to perform the multi swap
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInMultiPermit(
         uint256 id,
         MultiSwapInfo calldata multiSwapInfo,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {

@@ -52,4 +52,18 @@ interface IBalancerVault {
         int256[] memory limits,
         uint256 deadline
     ) external returns (int256[] memory assetDeltas);
+
+    struct JoinPoolRequest {
+        address[] assets;
+        uint256[] maxAmountsIn;
+        bytes userData;
+        bool fromInternalBalance;
+    }
+
+    function joinPool(
+        bytes32 poolId,
+        address sender,
+        address recipient,
+        JoinPoolRequest memory request
+    ) external returns (uint256 amount);
 }

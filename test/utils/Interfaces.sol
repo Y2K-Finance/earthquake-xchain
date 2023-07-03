@@ -7,6 +7,21 @@ interface IStargateRouter {
     function poolId() external view returns (uint16);
 }
 
+interface IvlY2K {
+    function getAccount(
+        address owner
+    )
+        external
+        view
+        returns (
+            uint256 balance,
+            uint256 lockEpochs,
+            uint256 lastEpochPaid,
+            uint256 rewards1,
+            uint256 rewards2
+        );
+}
+
 interface IBalancer {
     enum SwapKind {
         GIVEN_IN,

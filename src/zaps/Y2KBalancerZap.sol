@@ -9,11 +9,17 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPermit2} from "../interfaces/IPermit2.sol";
 
+/// @title Balancer Zap for Y2K Vaults
+/// @notice Tokens can be swapped on Balancer and deposited into Y2K vaults
 contract Y2KBalancerZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     IBalancerVault public immutable balancerVault;
     IPermit2 public immutable permit2;
 
+    /** @notice constructor
+        @param _balancerVault The address of the Balancer vault
+        @param _permit2 The address of the permit2 contract
+    **/
     constructor(address _balancerVault, address _permit2) {
         if (_balancerVault == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
@@ -21,6 +27,14 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         permit2 = IPermit2(_permit2);
     }
 
+    /** @notice Single swap tokens on Balancer and deposits them into a Y2K vault
+        @param singleSwap The swap struct for the Balancer swap
+        @param fromAmount The amount of from token to swap
+        @param toAmountMin The minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function zapIn(
         IBalancerVault.SingleSwap calldata singleSwap,
         uint256 fromAmount,
@@ -52,13 +66,23 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         _deposit(singleSwap.assetOut, id, amountOut, vaultAddress, receiver);
     }
 
+    /** @notice Single swap tokens on Balancer using permit and deposits them into a Y2K vault
+        @param singleSwap The swap struct for the Balancer swap
+        @param toAmountMin The minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInPermit(
         IBalancerVault.SingleSwap calldata singleSwap,
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
         address receiver,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
@@ -81,6 +105,16 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         _deposit(singleSwap.assetOut, id, amountOut, vaultAddress, receiver);
     }
 
+    /** @notice Multi swap tokens on Balancer and deposits them into a Y2K vault
+        @param kind The swap kind for the Balancer swap
+        @param swaps The array of swap steps for each swap
+        @param assets The array of addresses for the tokens to swap
+        @param limits The limits array with an amountIn, zeroed values for amount out, and a negative number for the expected amount out
+        @param deadline The deadline for the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function zapInMulti(
         IBalancerVault.SwapKind kind,
         IBalancerVault.BatchSwapStep[] memory swaps,
@@ -122,6 +156,18 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         );
     }
 
+    /** @notice Multi swap tokens on Balancer using permit and deposits them into a Y2K vault
+        @param kind The swap kind for the Balancer swap
+        @param swaps The array of swap steps for each swap
+        @param assets The array of addresses for the tokens to swap
+        @param limits The limits array with an amountIn, zeroed values for amount out, and a negative number for the expected amount out
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInMultiPermit(
         IBalancerVault.SwapKind kind,
         IBalancerVault.BatchSwapStep[] memory swaps,
@@ -130,7 +176,7 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
         uint256 id,
         address vaultAddress,
         address receiver,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {

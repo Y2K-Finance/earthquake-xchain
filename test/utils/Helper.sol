@@ -14,6 +14,7 @@ abstract contract Helper is Test {
     address constant WETH_ADDRESS = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
     address constant FRAX_ADDRESS = 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F;
     address constant DUSD_ADDRESS = 0xF0B5cEeFc89684889e5F7e0A7775Bd100FcD3709;
+    address constant Y2K_ADDRESS = 0x65c936f008BC34fE819bce9Fa5afD9dc2d49977f;
     address constant sender = address(0x01);
     address constant secondSender = address(0x02);
     address constant thirdSender = address(0x03);
@@ -39,12 +40,18 @@ abstract contract Helper is Test {
         0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address constant PERMIT_2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
+    address constant VL_Y2K = 0xbDAA858Fd7b0DC05F8256330fAcB35de86283cA0;
+    address constant BALANCER_Y2K_LP_TOKEN =
+        0x569061E2D807881F4A33E1cbE1063bc614cB75a4;
+
     bytes32 constant USDT_USDC_POOL_ID_BALANCER =
         0x1533a3278f3f9141d5f820a184ea4b017fce2382000000000000000000000016;
     bytes32 constant USDC_WETH_POOL_ID_BALANCER =
         0x64541216bafffeec8ea535bb71fbc927831d0595000100000000000000000002;
     bytes32 constant DUSD_DAI_POOL_ID_BALANCER =
         0xd89746affa5483627a87e55713ec1905114394950002000000000000000000bf;
+    bytes32 constant Y2K_WETH_POOL_ID_BALANCER =
+        0x569061e2d807881f4a33e1cbe1063bc614cb75a40002000000000000000002bb;
     address constant FRAX_USDC_POOL_CURVE =
         0xC9B8a3FDECB9D5b218d02555a8Baf332E5B740d5;
     address constant USDC_USDT_POOL_CURVE =

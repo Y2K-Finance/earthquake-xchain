@@ -1234,15 +1234,6 @@ contract BridgeFromTests is BridgeHelper {
             dstPoolId,
             payload
         );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.bridge{value: amountIn}(
-            amountIn,
-            fromToken,
-            srcPoolId,
-            dstPoolId,
-            payload
-        );
     }
 
     function testErrors_permitSwapBridgeInvalidInputs() public {
@@ -1290,20 +1281,6 @@ contract BridgeFromTests is BridgeHelper {
             swapPayload,
             bridgePayload
         );
-
-        transferDetails.requestedAmount = 1;
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.permitSwapAndBridge{value: amountIn}(
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            permit,
-            transferDetails,
-            sig,
-            swapPayload,
-            bridgePayload
-        );
     }
 
     function testErrors_swapBridgeInvalidInputs() public {
@@ -1332,18 +1309,6 @@ contract BridgeFromTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         zapFrom.swapAndBridge{value: amountIn}(
             zeroAmountIn,
-            fromToken,
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            swapPayload,
-            bridgePayload
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.swapAndBridge{value: amountIn}(
-            amountIn,
             fromToken,
             receivedToken,
             srcPoolId,

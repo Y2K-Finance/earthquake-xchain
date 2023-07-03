@@ -20,12 +20,12 @@ contract ZapHelper is Script, Helper {
     uint256 public epochId;
     uint256 public dexId;
 
-    address public camelotZapper = address(0x123);
-    address public balancerZapper = address(0x123);
-    address public gmxZapper = address(0x123);
-    address public curveZapper = address(0x123);
-    address public sushiZapper = address(0x123);
-    address public uniswapV3Zapper = address(0x123);
+    address public camelotZapper = 0x4B4AfB7705c512913f3B9Ba063d8f7EDc1589e4b;
+    address public balancerZapper = 0xe56934Fe3D25a8b813CF940884F8E4A743E6EDfC;
+    address public gmxZapper = 0xa0FE4F44c29Aa5290BD0dEB281c3355198723bd3;
+    address public curveZapper = 0x3C2387fACD81D639736E6aab38D6B135D8604a67;
+    address public sushiZapper = 0x3c9abB034a2097AE45658ac513F23fcf90E9f0D7;
+    address public uniswapV3Zapper = 0xfd54A7256edf94A06c402709e5227C63952513E7;
 
     Y2KCamelotZap public zapCamelot;
     Y2KBalancerZap public zapBalancer;
@@ -44,8 +44,8 @@ contract ZapHelper is Script, Helper {
         path[0] = USDC_ADDRESS;
         path[1] = WETH_ADDRESS;
         uint256 fromAmount = 5_000_000;
-        uint256 toAmountMin = 24_000_000_000_000_000;
-        uint256 id = EPOCH_ID;
+        uint256 toAmountMin = 2_400_000_000_000_000;
+        uint256 id = epochId;
 
         if (
             IERC20(USDC_ADDRESS).allowance(liveSender, wrapperAddress) <
@@ -66,8 +66,8 @@ contract ZapHelper is Script, Helper {
         )
     {
         uint256 fromAmount = 5_000_000;
-        uint256 toAmountMin = 24_000_000_000_000_000;
-        uint256 id = 1684713600;
+        uint256 toAmountMin = 2_400_000_000_000_000;
+        uint256 id = epochId;
 
         singleSwap.amount = fromAmount;
         singleSwap.assetIn = USDC_ADDRESS;
@@ -102,8 +102,8 @@ contract ZapHelper is Script, Helper {
         path[1] = WETH_ADDRESS;
         fee[0] = 500;
         uint256 fromAmount = 5_000_000;
-        uint256 toAmountMin = 24_000_000_000_000_000;
-        uint256 id = EPOCH_ID;
+        uint256 toAmountMin = 2_400_000_000_000_000;
+        uint256 id = epochId;
 
         if (
             IERC20(USDC_ADDRESS).allowance(liveSender, wrapperAddress) <
@@ -134,8 +134,8 @@ contract ZapHelper is Script, Helper {
         pool = USDT_WETH_POOL_CURVE;
 
         fromAmount = 5_000_000;
-        toAmountMin = 24_000_000_000_000_000;
-        id = EPOCH_ID;
+        toAmountMin = 2_400_000_000_000_000;
+        id = epochId;
 
         if (
             IERC20(USDC_ADDRESS).allowance(liveSender, wrapperAddress) <

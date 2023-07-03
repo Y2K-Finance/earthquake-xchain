@@ -16,6 +16,8 @@ import {PackedUint128Math} from "../libraries/PackedUint128Math.sol";
 
 import {console2 as console} from "lib/forge-std/src/console2.sol";
 
+/// @title TraderJoe Zap for Y2K Vaults
+/// @notice Tokens can be swapped on TraderJoe and deposited into Y2K vaults
 contract Y2KTraderJoeZap is IErrors {
     using SafeERC20 for IERC20;
     using PackedUint128Math for bytes32;

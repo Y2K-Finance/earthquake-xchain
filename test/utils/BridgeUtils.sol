@@ -138,7 +138,8 @@ contract BridgeHelper is Helper, PermitUtils {
         address receiver,
         address token,
         uint256 id,
-        address vaultAddress
+        address vaultAddress,
+        uint256 depositType
     )
         internal
         returns (
@@ -158,7 +159,7 @@ contract BridgeHelper is Helper, PermitUtils {
 
         srcAddress = abi.encode(stargateRelayer); // Set to sender address
         nonce = 0;
-        payload = abi.encode(receiver, id, vaultAddress);
+        payload = abi.encode(receiver, id, vaultAddress, depositType);
         chainId = 1; // Set to 1 for mainnet
 
         assertEq(IERC20(token).balanceOf(sender), 0);
@@ -194,6 +195,7 @@ contract BridgeHelper is Helper, PermitUtils {
         address _vaultAddress
     ) internal returns (uint256) {
         address token = WETH_ADDRESS;
+        uint256 depositType = 2;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -205,7 +207,8 @@ contract BridgeHelper is Helper, PermitUtils {
                 _depositor,
                 token,
                 EPOCH_ID,
-                _vaultAddress
+                _vaultAddress,
+                depositType
             );
         vm.prank(stargateRelayer);
         zapDest.sgReceive(
@@ -343,7 +346,7 @@ contract BridgeHelper is Helper, PermitUtils {
             );
         } else if (bridgeId == 0x03) {
             // NOTE: Bonder fee used = max(amount.mul(2).div(10000), minBonderFeeAbsolute);
-            uint256 bonderFee = (toAmountMin * 4) / 10000;
+            uint256 bonderFee = (toAmountMin * 5) / 10000;
             payload = abi.encode(
                 funcSelector,
                 bridgeId,

@@ -2,7 +2,6 @@
 pragma solidity 0.8.18;
 
 interface IErrors {
-    // TODO: Either invalidMintOut or InvalidOutput
     error InvalidMinOut(uint256 minOut);
     error InvalidInput();
     error InvalidOutput();
@@ -13,6 +12,7 @@ interface IErrors {
     error InvalidBridgeId();
     error InvalidVault();
     error InvalidHopBridge();
-    error InvalidQueueId();
+    error InvalidEpochId();
     error NullBalance();
+    error InvalidDepositType();
 }

@@ -86,6 +86,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_depositWithSgReceive() public {
         address token = WETH_ADDRESS;
+        uint256 depositType = 2;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -97,7 +98,8 @@ contract BridgeDestTests is BridgeHelper {
                 sender,
                 token,
                 EPOCH_ID,
-                EARTHQUAKE_VAULT
+                EARTHQUAKE_VAULT,
+                depositType
             );
 
         vm.startPrank(stargateRelayer);
@@ -129,6 +131,7 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_depositEthWithSgReceive() public {
         address token = WETH_ADDRESS;
+        uint256 depositType = 1;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -140,7 +143,8 @@ contract BridgeDestTests is BridgeHelper {
                 sender,
                 token,
                 EPOCH_ID,
-                EARTHQUAKE_VAULT
+                EARTHQUAKE_VAULT,
+                depositType
             );
         // NOTE: Overwriting for ETH
         uint256 amount = 1e17;
@@ -175,47 +179,6 @@ contract BridgeDestTests is BridgeHelper {
             IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
             1
         );
-    }
-
-    function test_depositV2QueueWithSgReceive() public {
-        address token = WETH_ADDRESS;
-        (
-            bytes memory srcAddress,
-            uint64 nonce,
-            uint256 amount,
-            bytes memory payload,
-            uint256 chainId
-        ) = setupSgReceiveDeposit(
-                stargateRelayer,
-                sender,
-                token,
-                EPOCH_ID,
-                EARTHQUAKE_VAULT_V2
-            );
-        payload = bytes.concat(payload, abi.encode(0));
-        console.logUint(payload.length);
-
-        vm.startPrank(stargateRelayer);
-        vm.expectEmit(true, true, true, false);
-        emit ReceivedDeposit(token, address(zapDest), amount);
-        zapDest.sgReceive(
-            uint16(chainId),
-            srcAddress,
-            nonce,
-            token,
-            amount,
-            payload
-        );
-
-        assertEq(
-            zapDest.receiverToVaultToIdToAmount(
-                sender,
-                EARTHQUAKE_VAULT_V2,
-                EPOCH_ID
-            ),
-            amount
-        );
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
     }
 
     function test_withdrawWithLzReceive() public {
@@ -816,18 +779,56 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
     }
 
+    function testErrors_sgReceiveInvalidEpochId() public {
+        uint16 chainId = 0;
+        bytes memory data = "";
+        uint256 nonce = 0;
+        uint256 depositType = 1;
+        bytes memory payload = abi.encode(
+            sender,
+            0,
+            EARTHQUAKE_VAULT_USDT,
+            depositType
+        );
+
+        vm.startPrank(stargateRelayer);
+        vm.expectRevert(IErrors.InvalidEpochId.selector);
+        zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        vm.stopPrank();
+    }
+
     function testErrors_sgReceiveInvalidVault() public {
         uint16 chainId = 0;
         bytes memory data = "";
         uint256 nonce = 0;
+        uint256 depositType = 1;
         bytes memory payload = abi.encode(
             sender,
             EPOCH_ID,
-            EARTHQUAKE_VAULT_USDT
+            EARTHQUAKE_VAULT_USDT,
+            depositType
         );
 
         vm.startPrank(stargateRelayer);
         vm.expectRevert(IErrors.InvalidVault.selector);
+        zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        vm.stopPrank();
+    }
+
+    function testErrors_sgReceiveInvalidDepositType() public {
+        uint16 chainId = 0;
+        bytes memory data = "";
+        uint256 nonce = 0;
+        uint256 depositType = 0;
+        bytes memory payload = abi.encode(
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            depositType
+        );
+
+        vm.startPrank(stargateRelayer);
+        vm.expectRevert(IErrors.InvalidDepositType.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
         vm.stopPrank();
     }

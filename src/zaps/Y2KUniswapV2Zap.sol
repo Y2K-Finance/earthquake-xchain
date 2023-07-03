@@ -9,11 +9,17 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPermit2} from "../interfaces/IPermit2.sol";
 
+/// @title UniswapV2 Zap for Y2K Vaults
+/// @notice Tokens can be swapped on UniswapV2 and deposited into Y2K vaults
 contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     address public immutable uniswapV2ForkFactory;
     IPermit2 public immutable permit2;
 
+    /** @notice constructor
+        @param _sushiV2Factory The sushiswap factory address
+        @param _permit2 The address of the permit2 contract
+    **/
     constructor(address _sushiV2Factory, address _permit2) {
         if (_sushiV2Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
@@ -24,6 +30,14 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
     /////////////////////////////////////////
     //        PUBLIC FUNCTIONS             //
     /////////////////////////////////////////
+    /** @notice Swap tokens on UniswapV2 and deposits them into a Y2K vault
+        @param path The list of token address to swap between
+        @param fromAmount The amount of from token to swap
+        @param toAmountMin The minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function zapIn(
         address[] calldata path,
         uint256 fromAmount,
@@ -37,13 +51,23 @@ contract Y2KUniswapV2Zap is IErrors, ISignatureTransfer {
         _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
+    /** @notice Swap tokens on UniswapV2 and deposits them into a Y2K vault
+        @param path The list of token address to swap between
+        @param toAmountMin The minimum amount of tokens to receive from the swap
+        @param id The ID of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInPermit(
         address[] calldata path,
         uint256 toAmountMin,
         uint256 id,
         address vaultAddress,
         address receiver,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {

@@ -7,6 +7,8 @@ import {IUniswapPair} from "../interfaces/dexes/IUniswapPair.sol";
 import {IEarthquake} from "../interfaces/IEarthquake.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 
+/// @title Chronos Zap for Y2K Vaults
+/// @notice Tokens can be swapped on Chronos and deposited into Y2K vaults
 contract Y2KChronosZap is IErrors {
     using SafeTransferLib for ERC20;
     address public immutable chronosFactory;

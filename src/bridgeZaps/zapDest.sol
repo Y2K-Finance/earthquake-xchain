@@ -13,8 +13,8 @@ import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
 import {ERC1155Holder} from "lib/openzeppelin-contracts/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import "forge-std/console.sol";
-
+/// @title Cross-chain bridge receiver for Y2K Vaults
+/// @notice Transactions to Y2K bridge contracts on other chains relay to this contract to complete vault actions
 contract ZapDest is
     Ownable,
     ERC1155Holder,
@@ -88,6 +88,9 @@ contract ZapDest is
     //////////////////////////////////////////////
     //                 ADMIN                   //
     //////////////////////////////////////////////
+    /// @notice Admin function to manage the Layerzero trusted addresses for withdrawals
+    /// @param srcChainId The srcChainId as per LayerZero's classification
+    /// @param trustedAddress The address of the LayerZero relayer
     function setTrustedRemoteLookup(
         uint16 srcChainId,
         bytes calldata trustedAddress
@@ -98,6 +101,9 @@ contract ZapDest is
         emit TrustedRemoteAdded(srcChainId, trustedAddress, msg.sender);
     }
 
+    /// @notice Admin function to manage the Hop bridges that can be used
+    /// @param _tokens An array of ERC20 token addresses
+    /// @param _bridges An array of Hop bridge addresses corresponding to each ERC20 token
     function setTokenToHopBridge(
         address[] calldata _tokens,
         address[] calldata _bridges
@@ -112,6 +118,8 @@ contract ZapDest is
         emit TokenToHopBridgeSet(_tokens, _bridges, msg.sender);
     }
 
+    /// @notice Admin function to manage the vaults the contract can deposit to
+    /// @param _vaultAddress The address of the vault to whitelist on Y2K
     function whitelistVault(address _vaultAddress) external payable onlyOwner {
         if (_vaultAddress == address(0)) revert InvalidInput();
         whitelistedVault[_vaultAddress] = 1;
@@ -120,7 +128,8 @@ contract ZapDest is
 
     //////////////////////////////////////////////
     //                 PUBLIC                   //
-    //////////////////////////////////////////////s
+    //////////////////////////////////////////////
+    /// @notice Stargate relayer will invoke this function to bridge tokens with a payload
     /// @param _chainId The remote chainId sending the tokens
     /// @param _srcAddress The remote Bridge address
     /// @param _nonce The message ordering nonce
@@ -135,33 +144,36 @@ contract ZapDest is
         uint256 amountLD,
         bytes calldata _payload
     ) external payable override {
-        // TODO: Check the amoutnLD is the correct amount
         if (msg.sender != stargateRelayer && msg.sender != stargateRelayerEth)
             revert InvalidCaller();
-        (address receiver, uint256 id, address vaultAddress) = abi.decode(
-            _payload,
-            (address, uint256, address)
-        );
-
+        (
+            address receiver,
+            uint256 id,
+            address vaultAddress,
+            uint256 depositType
+        ) = abi.decode(_payload, (address, uint256, address, uint256));
         // TODO: In the event we revert - does stargate refund? Or should we have refund addeess?
+        if (id == 0) revert InvalidEpochId();
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
-
-        // NOTE: We should know the epochId even when queueing
-        // EpochId = uint256(keccak256(abi.encodePacked(marketId,epochBegin,epochEnd)));
         receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
 
-        // NOTE: When payload > 96 we are signalling this is being queued for the next epoch
-        if (_payload.length == 128) id = 0;
         // TODO: Hardcode address(this) as a constant
-        _depositToVault(id, amountLD, address(this), _token, vaultAddress);
+        _depositToVault(
+            id,
+            amountLD,
+            address(this),
+            _token,
+            vaultAddress,
+            depositType
+        );
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
-    // @notice LayerZero endpoint will invoke this function to deliver the message on the destination
-    // @param _srcChainId - the source endpoint identifier
-    // @param _srcAddress - the source sending contract address from the source chain
-    // @param _nonce - the ordered message nonce
-    // @param _payload - the signed payload is the UA bytes has encoded to be sent
+    /// @notice LayerZero endpoint will invoke this function to deliver the message on the destination
+    /// @param _srcChainId - the source endpoint identifier
+    /// @param _srcAddress - the source sending contract address from the source chain
+    /// @param _nonce - the ordered message nonce
+    /// @param _payload - the signed payload is the UA bytes has encoded to be sent
     function lzReceive(
         uint16 _srcChainId,
         bytes memory _srcAddress,
@@ -208,6 +220,14 @@ contract ZapDest is
         );
     }
 
+    /// @notice Withdrawal function for the user to call on Arbitrum directly
+    /// @param funcSelector The function selector to toggle between withdrawal/withdrawAndBridge/WithdrawSwapAndBridge
+    /// @param bridgeId The id for the bridge that should be used
+    /// @param receiver The address of the receiver
+    /// @param id The id for the epoch being withdraw from
+    /// @param _srcChainId The srcChainId as per LayerZero's classification
+    /// @param vaultAddress The address of the Y2K vault to withdraw from
+    /// @param _withdrawPayload The payload containing information for swapping and bridging
     function withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
@@ -315,4 +335,8 @@ contract ZapDest is
         } else revert InvalidSwapId();
         return (toToken, _payload, amountOut);
     }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }

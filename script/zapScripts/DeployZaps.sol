@@ -11,6 +11,7 @@ import "../../src/zaps/Y2KUniswapV3Zap.sol";
 import "../../src/zaps/Y2KBalancerZap.sol";
 import "../../src/zaps/Y2KCamelotZap.sol";
 
+// forge script DeployZapScript --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 contract DeployZapScript is Script, Helper {
     function setUp() public {}
 

@@ -11,6 +11,8 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPermit2} from "../interfaces/IPermit2.sol";
 
+/// @title UniswapV3 Zap for Y2K Vaults
+/// @notice Tokens can be swapped on UniswapV3 and deposited into Y2K vaults
 contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     using BytesLib for bytes;
@@ -35,6 +37,10 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         address receiver;
     }
 
+    /** @notice constructor
+        @param _uniswapV3Factory The uniswapv3 factory address
+        @param _permit2 The address of the permit2 contract
+    **/
     constructor(address _uniswapV3Factory, address _permit2) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
         if (_permit2 == address(0)) revert InvalidInput();
@@ -45,6 +51,15 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     /////////////////////////////////////////
     //        PUBLIC FUNCTIONS             //
     /////////////////////////////////////////
+    /** @notice Swaps tokens on UniswapV3 and deposits them into a Y2K vault
+        @param path The list of token address to swap between
+        @param fee The list of fees to use for each swap
+        @param fromAmount The amount of the fromToken to swap
+        @param toAmountMin The minimum amount of the last token to receive
+        @param id The id of the Y2K vault to deposit into
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function zapIn(
         address[] calldata path,
         uint24[] calldata fee,
@@ -60,9 +75,15 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         _deposit(path[path.length - 1], id, amountOut, vaultAddress, receiver);
     }
 
+    /** @notice Swaps tokens on UniswapV3 using permit and deposits them into a Y2K vault
+        @param inputs The swap inputs
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed permit message
+    **/
     function zapInPermit(
         SwapInputs calldata inputs,
-        PermitTransferFrom memory permit,
+        PermitTransferFrom calldata permit,
         SignatureTransferDetails calldata transferDetails,
         bytes calldata sig
     ) external {
@@ -82,13 +103,14 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         );
     }
 
+    /// @notice The callback implementation for UniswapV3 pools
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
         bytes calldata _data
     ) external override {
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        (address tokenIn, uint24 fee, address tokenOut) = decodePool(_data); // TODO: Check this is in correct order
+        (address tokenIn, uint24 fee, address tokenOut) = decodePool(_data);
 
         if (msg.sender != getPool(tokenIn, tokenOut, fee))
             revert InvalidCaller();

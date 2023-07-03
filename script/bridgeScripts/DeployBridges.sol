@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
@@ -7,11 +7,13 @@ import "../../test/utils/Helper.sol";
 import "../../src/bridgeZaps/zapDest.sol";
 import "../../src/bridgeZaps/zapFrom.sol";
 
+// forge script DeployLzScript --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
+// forge script DeployLzScript --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 contract DeployLzScript is Script, Helper {
     uint256 network;
 
     function setUp() public {
-        network = 1;
+        network = 1; // 1 for Ethereum and 2 for Arbitrum
     }
 
     function run() public {
@@ -46,7 +48,7 @@ contract DeployLzScript is Script, Helper {
     }
 
     function _deployToMainnet() internal {
-        address y2kArbRouter = 0x9c668A934611706F84f5B22705eCDF94C3349c5d;
+        address y2kArbRouter = 0x1758ED7324718423fC7c4Fc3FC3747eC3861cBdB;
         ZapFrom zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,

@@ -2,10 +2,11 @@
 pragma solidity 0.8.18;
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {SwapHelper, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KChronosZap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KTraderJoeZap, Y2KCurveZap, Y2KGMXZap} from "../utils/SwapUtils.sol";
+import {SwapHelper, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KChronosZap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KTraderJoeZap, Y2KCurveZap, Y2KGMXZap, Y2KvlZap} from "../utils/SwapUtils.sol";
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
 import {IErrors} from "../../src/interfaces/IErrors.sol";
 import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
+import {IvlY2K} from "../utils/Interfaces.sol";
 
 contract ZapTests is SwapHelper {
     /////////////////////////////////////////
@@ -23,6 +24,35 @@ contract ZapTests is SwapHelper {
             EPOCH_BEGIN
         );
         assertEq(block.timestamp, EPOCH_BEGIN - 1);
+    }
+
+    /////////////////////////////////////////
+    //               vlY2K Tests            //
+    /////////////////////////////////////////
+    function test_depositvlY2K() private {
+        vm.startPrank(sender);
+        (
+            uint256 y2kBalance,
+            uint256 wethBalance,
+            uint256 assetOneAmount,
+            uint256 assetTwoAmount,
+            IBalancerVault.JoinPoolRequest memory request
+        ) = _setupvlY2K(sender);
+
+        uint256 pid = 1544044071929306331074;
+        zapvlY2K.zapIn(
+            request,
+            Y2K_WETH_POOL_ID_BALANCER,
+            assetOneAmount,
+            assetTwoAmount,
+            pid
+        );
+
+        assertTrue(IERC20(Y2K_ADDRESS).balanceOf(sender) < y2kBalance);
+        assertTrue(IERC20(WETH_ADDRESS).balanceOf(sender) < wethBalance);
+        (uint256 accountBalance, , , , ) = IvlY2K(VL_Y2K).getAccount(sender);
+        assertGe(accountBalance, 0);
+        vm.stopPrank();
     }
 
     /////////////////////////////////////////
@@ -67,6 +97,12 @@ contract ZapTests is SwapHelper {
 
     function testStateVars_Chronos() public {
         assertEq(zapChronos.chronosFactory(), CHRONOS_FACTORY);
+    }
+
+    function testStateVars_vlZapper() public {
+        assertEq(address(zapvlY2K.balancerVault()), BALANCER_VAULT);
+        assertEq(address(zapvlY2K.permit2()), PERMIT_2);
+        assertEq(address(zapvlY2K.lpAsset()), BALANCER_Y2K_LP_TOKEN);
     }
 
     /////////////////////////////////////////
@@ -330,6 +366,25 @@ contract ZapTests is SwapHelper {
     function testErrors_Chronos() public {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new Y2KChronosZap(address(0));
+    }
+
+    function testErrors_vlY2K() public {
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new Y2KvlZap(address(0), PERMIT_2, VL_Y2K, BALANCER_Y2K_LP_TOKEN);
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new Y2KvlZap(BALANCER_VAULT, address(0), VL_Y2K, BALANCER_Y2K_LP_TOKEN);
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new Y2KvlZap(
+            BALANCER_VAULT,
+            PERMIT_2,
+            address(0),
+            BALANCER_Y2K_LP_TOKEN
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new Y2KvlZap(BALANCER_VAULT, PERMIT_2, VL_Y2K, address(0));
     }
 
     /////////////////////////////////////////
