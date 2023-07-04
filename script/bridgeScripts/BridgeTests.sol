@@ -8,11 +8,15 @@ import "../../src/bridgeZaps/zapDest.sol";
 import "../../src/bridgeZaps/zapFrom.sol";
 
 // forge script BridgeTestScript --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --broadcast --skip-simulation -vv
+// forge script BridgeTestScript --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --skip-simulation -vv
+// forge script BridgeTestScript --rpc-url $OPTIMISM_RPC_URL --private-key $PRIVATE_KEY --broadcast --skip-simulation -vv
 contract BridgeTestScript is Script, Helper {
     address payable zapDestArb =
-        payable(0x1758ED7324718423fC7c4Fc3FC3747eC3861cBdB);
+        payable(0x546355099673a055F3a3aAb7007b9f0F5567832a);
     address payable zapFromEth =
         payable(0x4fEd980114bA926fa8562E2C3E6879F39556088A);
+    address payable zapFromOp =
+        payable(0xbc8607Ec58B1C3B027Fa3B2C83C82783Bc7b04Ce);
     address receiver = 0x2d244ed7d17AE47886f7f13F53e74b6B0bC16fdC;
 
     address usdcVaultV2 = 0x4410ea8E14b07A5f4e873803FEc45FF44934F0f2;
@@ -26,33 +30,68 @@ contract BridgeTestScript is Script, Helper {
     ZapDest zapDest;
 
     function setUp() public {
-        zapFrom = ZapFrom(zapFromEth);
         zapDest = ZapDest(zapDestArb);
         vaultAddress = usdcVaultV1;
     }
 
     function run() public {
-        uint256 networkToTest = 1; // 1 for Ethereum and 2 for Arbitrum
+        uint256 sideToTest = 1; // 1 for zapFrom and 2 for zapDest
+        uint256 network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism
+
         vm.startBroadcast();
-        if (networkToTest == 1) _testFrom();
-        else _testDest();
+        if (sideToTest == 1) _testFrom(network);
+        else if (sideToTest == 2) _testDest();
 
         vm.stopBroadcast();
     }
 
-    function _testFrom() internal {
-        _testBridgeEth();
+    function _testFrom(uint256 network) internal {
+        if (network == 1) _testBridgeEth();
+        else if (network == 10) _testBridgeOptimism();
     }
 
     function _testDest() internal {}
 
     function _testBridgeEth() internal {
+        zapFrom = ZapFrom(zapFromEth);
+
         uint256 amountIn = 0.01 ether;
         uint256 amount = 0.005 ether;
         address fromToken = address(0);
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
-        bytes memory payload = abi.encode(receiver, epochIdV1, vaultAddress);
+        uint256 depositType = fromToken == address(0) ? 1 : 2;
+        bytes memory payload = abi.encode(
+            receiver,
+            epochIdV1,
+            vaultAddress,
+            depositType
+        );
+
+        zapFrom.bridge{value: amountIn}(
+            amount,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            payload
+        );
+    }
+
+    function _testBridgeOptimism() internal {
+        zapFrom = ZapFrom(zapFromOp);
+
+        uint256 amountIn = 0.01 ether;
+        uint256 amount = 0.005 ether;
+        address fromToken = address(0);
+        uint16 srcPoolId = 13; // What should this be?
+        uint16 dstPoolId = 13; // What should this be?
+        uint256 depositType = fromToken == address(0) ? 1 : 2;
+        bytes memory payload = abi.encode(
+            receiver,
+            epochIdV1,
+            vaultAddress,
+            depositType
+        );
 
         zapFrom.bridge{value: amountIn}(
             amount,
