@@ -103,7 +103,11 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         );
     }
 
-    /// @notice The callback implementation for UniswapV3 pools
+    /** @notice The callback implementation for UniswapV3 pools
+        @param amount0Delta The amount of token0 received
+        @param amount1Delta The amount of token1 received
+        @param _data The encoded pool address, fee, and tokenOut address
+    **/
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
@@ -125,6 +129,13 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
+    /** @notice Deposits fromToken into a Y2K vault
+        @param fromToken The ERC20 token being deposited to the vault
+        @param id The ID of the Y2K vault to deposit into the vault
+        @param amountIn The amount of fromToken being deposited to the vault
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function _deposit(
         address fromToken,
         uint256 id,
@@ -136,6 +147,12 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
+    /** @notice Simulates the address for the pool of two tokens
+        @param path An array of token addresses being swapped between
+        @param fee An array of fees for the pools being swapped betwen
+        @param fromAmount The amount of fromToken being swapped from
+        @return amountOut The amount of toToken received
+    **/
     function _swap(
         address[] calldata path,
         uint24[] calldata fee,
@@ -166,6 +183,13 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         }
     }
 
+    /** @notice Executes the swap with the simulated V3 pool from tokenIn, tokenOut, and fee
+        @param tokenIn The address of the fromToken
+        @param tokenOut The address of the toToken
+        @param fromAmount The amount of fromToken to swap
+        @param fee The fee for the pool
+        @return The amount of toToken received
+    **/
     function _executeSwap(
         address tokenIn,
         address tokenOut,
@@ -198,6 +222,12 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         }
     }
 
+    /** @notice Simulates the address for the pool of two tokens
+        @param tokenA The address of the first token
+        @param tokenB The address of the second token
+        @param fee The fee for the pool
+        @return pool The address of the pool
+    **/
     function getPool(
         address tokenA,
         address tokenB,
@@ -220,6 +250,12 @@ contract Y2KUniswapV3Zap is IErrors, IUniswapV3Callback, ISignatureTransfer {
         );
     }
 
+    /** @notice Decodes bytes to retrieve the fee and token addresses
+        @param path The encoded data for fee and tokens
+        @return tokenA - The address of the first token
+        @return fee - The fee for the pool
+        @return tokenB - The address of the second token
+    **/
     function decodePool(
         bytes memory path
     ) internal pure returns (address tokenA, uint24 fee, address tokenB) {

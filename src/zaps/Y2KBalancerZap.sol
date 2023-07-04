@@ -211,6 +211,13 @@ contract Y2KBalancerZap is IErrors, ISignatureTransfer {
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
+    /** @notice Deposits fromToken into a Y2K vault
+        @param fromToken The ERC20 token being deposited to the vault
+        @param id The ID of the Y2K vault to deposit into the vault
+        @param amountIn The amount of fromToken being deposited to the vault
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function _deposit(
         address fromToken,
         uint256 id,

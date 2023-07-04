@@ -11,10 +11,15 @@ contract UniswapV2Swapper is IErrors {
     using SafeTransferLib for ERC20;
     address public immutable uniswapV2ForkFactory;
     address public immutable sushiFactory;
-    // TODO: Could hardcode these as constants
     bytes internal primaryInitHash;
     bytes internal secondaryInitHash;
 
+    /** @notice constructor
+        @param _uniswapV2Factory The uniswapV2 factory address - as deployed on mainnet
+        @param _sushiFactory The sushiswap factory address
+        @param _primaryInitHash The init code hash for uniswapV2
+        @param _secondaryInitHash The init code hash for sushiSwap fork
+    **/
     constructor(
         address _uniswapV2Factory,
         address _sushiFactory,
@@ -34,6 +39,13 @@ contract UniswapV2Swapper is IErrors {
         secondaryInitHash = _secondaryInitHash;
     }
 
+    /** @notice Decodes the payload and conducts the swaps
+        @dev The dex id lets us select the initCodeHash and factory used to simulate pair addresses
+        @param dexId The id for the DEX being used (0x01 for uniswapV2, 0x02 for sushiSwap)
+        @param fromAmount The amount of the fromToken being swapped
+        @param payload The encoded payload for the swap - abi.encode(address[] path, uint256 minAmountOut)
+        @return amountOut The amount of the toToken received
+    **/
     function _swapUniswapV2(
         bytes1 dexId,
         uint256 fromAmount,
@@ -85,9 +97,16 @@ contract UniswapV2Swapper is IErrors {
 
         SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
 
-        return _swap(path, pairs, amounts);
+        return _executeSwap(path, pairs, amounts);
     }
 
+    /** @notice Simulates the address for the pair of two tokens
+        @param tokenA The address of the first token
+        @param tokenB The address of the second token
+        @param initCodeHash The init code hash for selected DEX
+        @param factory The address of the factory being used
+        @return pair The address of the pair
+    **/
     function _getPair(
         address tokenA,
         address tokenB,
@@ -111,7 +130,13 @@ contract UniswapV2Swapper is IErrors {
         );
     }
 
-    function _swap(
+    /** @notice Executes swaps on UniswapV2 fork
+        @param path The array of token addresses to swap between
+        @param pairs The array of pairs to swap through
+        @param amounts The array of amounts to swap with each pair 
+        @return The amount of destination token being received
+    **/
+    function _executeSwap(
         address[] memory path,
         address[] memory pairs,
         uint256[] memory amounts

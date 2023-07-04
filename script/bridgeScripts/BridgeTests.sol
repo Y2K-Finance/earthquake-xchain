@@ -31,7 +31,7 @@ contract BridgeTestScript is Script, Helper {
 
     function setUp() public {
         zapDest = ZapDest(zapDestArb);
-        vaultAddress = usdcVaultV1;
+        vaultAddress = usdcVaultV2;
     }
 
     function run() public {
@@ -63,7 +63,7 @@ contract BridgeTestScript is Script, Helper {
         uint256 depositType = fromToken == address(0) ? 1 : 2;
         bytes memory payload = abi.encode(
             receiver,
-            epochIdV1,
+            epochIdV2,
             vaultAddress,
             depositType
         );
@@ -88,7 +88,7 @@ contract BridgeTestScript is Script, Helper {
         uint256 depositType = fromToken == address(0) ? 1 : 2;
         bytes memory payload = abi.encode(
             receiver,
-            epochIdV1,
+            epochIdV2,
             vaultAddress,
             depositType
         );

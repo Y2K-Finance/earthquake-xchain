@@ -83,6 +83,13 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
+    /** @notice Deposits fromToken into a Y2K vault
+        @param fromToken The ERC20 token being deposited to the vault
+        @param id The ID of the Y2K vault to deposit into the vault
+        @param amountIn The amount of fromToken being deposited to the vault
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function _deposit(
         address fromToken,
         uint256 id,
@@ -94,6 +101,12 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
+    /** @notice Calculates the amounts to be received, pairs addresses, and swaps with each pair
+        @param path The array of token addresses to swap between
+        @param fromAmount The amount of fromToken to swap
+        @param toAmountMin The minimum amount of destination token to receive
+        @return amountOut The amount of destination token being received
+    **/
     function _swap(
         address[] calldata path,
         uint256 fromAmount,
@@ -137,6 +150,11 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         return _executeSwap(path, pairs, amounts);
     }
 
+    /** @notice Simulates the address for the pair of two tokens
+        @param tokenA The address of the first token
+        @param tokenB The address of the second token
+        @return pair The address of the pair
+    **/
     function _getPair(
         address tokenA,
         address tokenB
@@ -158,6 +176,12 @@ contract Y2KCamelotZap is IErrors, ISignatureTransfer {
         );
     }
 
+    /** @notice Executes swaps on Camelot
+        @param path The array of token addresses to swap between
+        @param pairs The array of pairs to swap through
+        @param amounts The array of amounts to swap with each pair 
+        @return The amount of destination token being received
+    **/
     function _executeSwap(
         address[] memory path,
         address[] memory pairs,

@@ -95,9 +95,9 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
 
     /** @notice Single swap tokens on Curve using permit and deposit into Y2K vault
         @param toToken the token to swap to
-        @param i the index of the from token in the Curve pool
-        @param j the index of the to token in the Curve pool
-        @param pool the Curve pool to swap on
+        @param i The index of the from token in the Curve pool
+        @param j The index of the to token in the Curve pool
+        @param pool The Curve pool to swap on
         @param toAmountMin the minimum amount of tokens to receive from the swap
         @param id The ID of the Y2K vault to deposit into
         @param vaultAddress The address of the Y2K vault to deposit into
@@ -213,6 +213,15 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     /////////////////////////////////////////
+    /** @notice Delegates the swap logic for each swap/pair to swapEth or swap
+        @param path An array of the tokens being swapped between
+        @param pools An array of Curve pools to swap with
+        @param iValues An array of indices of the fromToken in each Curve pool
+        @param jValues An array of indices of the toToken in each Curve pool
+        @param fromAmount The amount of fromToken to swap
+        @param toAmountMin The minimum amount of toToken to receive from the swap
+        @return amountOut The amount of toToken received from the swap
+    **/
     function _multiSwap(
         address[] memory path,
         address[] memory pools,
@@ -251,6 +260,17 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         if (amountOut == 0) revert InvalidOutput();
     }
 
+    /** @notice Swaps on Curve with the logic for an ERC20 pool 
+        @dev Caching the balance are Curve doesn't return amount received
+        @param fromToken the token being swapped from
+        @param toToken the token being swapped to
+        @param pool The Curve pool being swapped with
+        @param i The index of the fromToken in the Curve pool
+        @param j The index of the toToken in the Curve pool
+        @param fromAmount The amount of fromToken to swap
+        @param toAmountMin The minimum amount of toToken to receive from the swap
+        @return The amount of toToken received from the swap
+    **/
     function _swap(
         address fromToken,
         address toToken,
@@ -268,6 +288,17 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         return fromAmount;
     }
 
+    /** @notice Swaps on Curve with the logic for an ETH pool 
+        @dev Caching the balance are Curve doesn't return amount received
+        @param fromToken the token being swapped from
+        @param toToken the token being swapped to
+        @param pool The Curve pool being swapped with
+        @param i The index of the fromToken in the Curve pool
+        @param j The index of the toToken in the Curve pool
+        @param fromAmount The amount of fromToken to swap
+        @param toAmountMin The minimum amount of toToken to receive from the swap
+        @return The amount of toToken received from the swap
+    **/
     function _swapEth(
         address fromToken,
         address toToken,
@@ -285,6 +316,13 @@ contract Y2KCurveZap is IErrors, ISignatureTransfer {
         return fromAmount;
     }
 
+    /** @notice Deposits fromToken into a Y2K vault
+        @param fromToken The ERC20 token being deposited to the vault
+        @param id The ID of the Y2K vault to deposit into the vault
+        @param amountIn The amount of fromToken being deposited to the vault
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function _deposit(
         address fromToken,
         uint256 amountIn,

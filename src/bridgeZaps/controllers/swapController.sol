@@ -16,6 +16,16 @@ abstract contract SwapController is
     address public immutable balancerVault;
     error FailedSwap();
 
+    /** @notice Invoked in zapFrom constructor 
+        @dev DEX constructors are invoked in this call - UniswapV2 (uniV2 and sushi), UniswapV3, Curve
+        @param _uniswapV2Factory The uniswapv2 factory address
+        @param _sushiFactory The sushiswap factory address
+        @param _uniswapV3Factory The uniswapv3 factory address
+        @param _balancerVault The balancer vault address
+        @param _wethAddress The weth address
+        @param _primaryInitHash The init code hash for uniswapv2
+        @param _secondaryInitHash The init code hash for sushiswap
+     **/
     constructor(
         address _uniswapV2Factory,
         address _sushiFactory,
@@ -38,6 +48,14 @@ abstract contract SwapController is
         balancerVault = _balancerVault;
     }
 
+    /** @notice Uses the dexId to route the swap to the correct DEX logic
+        @dev Balancer's swap logic varies for single/multi swaps making it more complex to decode the input data
+            hence the separate function called if id is 0x05 in zapFrom
+        @param dexId The dexId of the DEX to be used
+        @param fromAmount The amount of fromToken to be swapped
+        @param swapPayload The payload for the swap - varies by DEX
+        @return The amount of toToken received
+     **/
     function _swap(
         bytes1 dexId,
         uint256 fromAmount,
@@ -51,6 +69,12 @@ abstract contract SwapController is
         else revert InvalidInput();
     }
 
+    /** @notice Swaps using balancer vault
+        @dev If the selector matches we know it's a single swap otherwise assume it's a multi swap
+        @dev The negative delta int256 should be the amount of toToken received in a multi swap
+        @param swapPayload The payload for the swap - varies by DEX
+        @return The amount of toToken received
+     **/
     function _swapBalancer(
         bytes calldata swapPayload
     ) internal returns (uint256) {

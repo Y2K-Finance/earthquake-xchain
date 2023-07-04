@@ -38,6 +38,10 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes _secondaryInitHash;
     }
 
+    /** @notice constructor
+        @dev The constructor calls SwapController to initialize UniswapV2, UniswapV3, Curve, and Balancer swappers
+        @param _config The config struct with all the addresses needed to initialize
+     **/
     constructor(
         Config memory _config
     )
@@ -70,12 +74,13 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     //////////////////////////////////////////////
     //                 PUBLIC                   //
     //////////////////////////////////////////////
-    /// @notice User invokes this function to bridge and deposit to Y2K vaults using Stargate
-    /// @param amountIn The qty of local _token contract tokens
-    /// @param fromToken The fromChain token address
-    /// @param srcPoolId The poolId for the fromChain for Stargate
-    /// @param dstPoolId The poolId for the toChain for Stargate
-    /// @param payload The encoded payload to deposit into vault abi.encode(address receiver, uint256 vaultId, address vaultAddress, uint256 depositType)
+    /** @notice User invokes this function to bridge and deposit to Y2K vaults using Stargate
+        @param amountIn The qty of local _token contract tokens
+        @param fromToken The fromChain token address
+        @param srcPoolId The poolId for the fromChain for Stargate
+        @param dstPoolId The poolId for the toChain for Stargate
+        @param payload The encoded payload to deposit into vault - abi.encode(address receiver, uint256 vaultId, address vaultAddress, uint256 depositType)
+    **/
     function bridge(
         uint amountIn,
         address fromToken,
@@ -97,16 +102,18 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         _bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
     }
 
-    /// @notice User invokes this function to swap with Permit, bridge, and deposit to Y2K vaults using Stargate
-    /// @param receivedToken The token being received in the swap
-    /// @param srcPoolId The poolId for the fromChain for Stargate
-    /// @param dstPoolId The poolId for the toChain for Stargate
-    /// @param dexId The id for the dex to be used (1 = UniswapV2 || 2 = UniswapV3 || 3 = Sushi || 4 = Curve || 5 = Balancer)
-    /// @param permit The permit struct for the token being permitted plus a nonce and deadline
-    /// @param transferDetails Struct with recipient address and amount for transfer
-    /// @param sig The signed
-    /// @param swapPayload The abi encoded payload for the dex being used
-    /// @param bridgePayload The abi encoded payload for instructions on the dest contract
+    /** @notice User invokes this function to swap with Permit, bridge, and deposit to Y2K vaults using Stargate
+        @dev The swap routing logic for each dex is executed on SwapController using the dexId and decoded payload
+        @param receivedToken The token being received in the swap
+        @param srcPoolId The poolId for the fromChain for Stargate
+        @param dstPoolId The poolId for the toChain for Stargate
+        @param dexId The id for the dex to be used (1 = UniswapV2 || 2 = UniswapV3 || 3 = Sushi || 4 = Curve || 5 = Balancer)
+        @param permit The permit struct for the token being permitted plus a nonce and deadline
+        @param transferDetails Struct with recipient address and amount for transfer
+        @param sig The signed
+        @param swapPayload The abi encoded payload for the dex being used
+        @param bridgePayload The abi encoded payload for instructions on the dest contract
+    **/
     function permitSwapAndBridge(
         address receivedToken,
         uint16 srcPoolId,
@@ -117,7 +124,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata sig,
         bytes calldata swapPayload,
         bytes calldata bridgePayload
-    ) public payable {
+    ) external payable {
         _checkConditions(transferDetails.requestedAmount);
 
         permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
@@ -149,14 +156,16 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         );
     }
 
-    /// @notice User invokes this function to swap, bridge and deposit to Y2K vaults using Stargate
-    /// @param amountIn The qty of local _token contract tokens
-    /// @param fromToken The fromChain token address
-    /// @param srcPoolId The poolId for the fromChain for Stargate
-    /// @param dstPoolId The poolId for the toChain for Stargate
-    /// @param dexId The id for the dex to be used (1 = UniswapV2 || 2 = UniswapV3 || 3 = Sushi || 4 = Curve || 5 = Balancer)
-    /// @param swapPayload The abi encoded payload for the dex being used
-    /// @param bridgePayload The abi encoded payload for instructions on the dest contract
+    /** @notice User invokes this function to swap, bridge and deposit to Y2K vaults using Stargate
+        @dev The swap routing logic for each dex is executed on SwapController using the dexId and decoded payload
+        @param amountIn The qty of local _token contract tokens
+        @param fromToken The fromChain token address
+        @param srcPoolId The poolId for the fromChain for Stargate
+        @param dstPoolId The poolId for the toChain for Stargate
+        @param dexId The id for the dex to be used (1 = UniswapV2 || 2 = UniswapV3 || 3 = Sushi || 4 = Curve || 5 = Balancer)
+        @param swapPayload The abi encoded payload for the dex being used
+        @param bridgePayload The abi encoded payload for instructions on the dest contract
+    **/
     function swapAndBridge(
         uint amountIn,
         address fromToken,
@@ -193,8 +202,10 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         );
     }
 
-    /// @notice User invokes this function to send a message to withdraw, withdrawAndBridge, or withdrawSwapAndBridge - bridging back to the fromChain
-    /// @param payload The abi encoded payload to conduct actions on the dest contract
+    /** @notice User invokes this function to send a message to withdraw, withdrawAndBridge, or withdrawSwapAndBridge
+        @dev Bridging transactions will only bridge back to the fromChain
+        @param payload The abi encoded payload to conduct actions on the dest contract
+    **/
     function withdraw(bytes memory payload) external payable {
         if (msg.value == 0) revert InvalidInput();
         ILayerZeroRouter(layerZeroRouter).send{value: msg.value}(
@@ -210,11 +221,22 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+    /** @notice Checks msg.value and amountIn for valid input
+        @dev Message value must be > 0 to pay for Stargate/LayerZero relayer fees
+        @param amountIn The amount of fromToken in
+    **/
     function _checkConditions(uint256 amountIn) private {
         if (msg.value == 0) revert InvalidInput();
         if (amountIn == 0) revert InvalidInput();
     }
 
+    /** @notice Routes the bridge with payload action to the Stargate router
+        @param amountIn The amount of fromToken being bridged
+        @param fromToken The fromToken being bridged
+        @param srcPoolId The poolId for the fromChain for Stargate
+        @param dstPoolId The poolId for the toChain for Stargate
+        @param payload The abi encoded payload for instructions on the dest contract
+    **/
     function _bridge(
         uint amountIn,
         address fromToken,
@@ -223,8 +245,9 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata payload
     ) private {
         if (fromToken == address(0)) {
-            // NOTE: When sending after a swap msg.value will be < amountIn as only contains the fee
-            // When sending without swap msg.value will be > amountIn as contains fee + amountIn
+            /*  NOTE: If sending after swap to ETH then msg.value will be < amountIn as it only contains the fee
+                If sending without swap msg.value will be > amountIn as it contains both fee + amountIn
+            **/
             uint256 msgValue = msg.value > amountIn
                 ? msg.value
                 : amountIn + msg.value;
@@ -238,7 +261,6 @@ contract ZapFrom is SwapController, ISignatureTransfer {
             );
         } else {
             ERC20(fromToken).safeApprove(stargateRouter, amountIn);
-            // Sends tokens to the destChain
             IStargateRouter(stargateRouter).swap{value: msg.value}(
                 uint16(ARBITRUM_CHAIN_ID), // the destination chain id
                 srcPoolId, // the source Stargate poolId

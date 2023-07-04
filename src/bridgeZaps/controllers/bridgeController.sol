@@ -17,6 +17,10 @@ abstract contract BridgeController is IErrors {
 
     mapping(address => address) public tokenToHopBridge;
 
+    /** @notice Invoked by zapDest
+        @param _celerBridge The address of Celer Bridge
+        @param _hyphenBridge The address of Hyphen Bridge
+    **/
     constructor(address _celerBridge, address _hyphenBridge) {
         if (_celerBridge == address(0)) revert InvalidInput();
         if (_hyphenBridge == address(0)) revert InvalidInput();
@@ -28,6 +32,14 @@ abstract contract BridgeController is IErrors {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+    /** @notice Bridges the token to the destination chain via the selected bridge
+        @param _bridgeId The id of the bridge to use
+        @param _receiver The address to receive the bridged tokens
+        @param _token The address of the token to bridge
+        @param _amount The amount of the token to bridge
+        @param _sourceChainId The id of the chain the token is being bridged from - always calling chain
+        @param _withdrawPayload The payload to decode for the extra inputs for each bridge
+    **/
     function _bridgeToSource(
         bytes1 _bridgeId,
         address _receiver,
@@ -62,6 +74,13 @@ abstract contract BridgeController is IErrors {
         } else revert InvalidBridgeId();
     }
 
+    /** @notice Bridges with Celer
+        @param _receiver The address to receive the bridged tokens
+        @param _token The address of the token to bridge
+        @param _amount The amount of the token to bridge
+        @param _dstChainId The id of the chain the token is being bridged to
+        @param maxSlippage The max slippage allowed for the bridge
+    **/
     function _bridgeWithCeler(
         address _receiver,
         address _token,
@@ -80,6 +99,12 @@ abstract contract BridgeController is IErrors {
         );
     }
 
+    /** @notice Bridges with Hyphen
+        @param _receiver The address to receive the bridged tokens
+        @param _token The address of the token to bridge
+        @param _amount The amount of the token to bridge
+        @param _srcChainId The id of the chain the token is being bridged from
+    **/
     function _bridgeWithHyphen(
         address _receiver,
         address _token,
@@ -96,7 +121,14 @@ abstract contract BridgeController is IErrors {
         );
     }
 
-    // maxSlippage input of 100 would be 1% slippage
+    /** @notice Bridges with Hop
+        @param _receiver The address to receive the bridged tokens
+        @param _token The address of the token to bridge
+        @param _amount The amount of the token to bridge
+        @param _srcChainId The id of the chain the token is being bridged from
+        @param maxSlippage The max slippage allowed for the bridge - input of 100 would be 1% slippage
+        @param bonderFee The fee to pay the bonder
+    **/
     function _bridgeWithHop(
         address _receiver,
         address _token,
@@ -109,7 +141,7 @@ abstract contract BridgeController is IErrors {
         uint256 deadline = block.timestamp + 2700;
         address bridgeAddress = tokenToHopBridge[_token];
         if (bridgeAddress == address(0)) revert InvalidHopBridge();
-        ERC20(_token).safeApprove(bridgeAddress, _amount); // (bridgeAddress,amount)
+        ERC20(_token).safeApprove(bridgeAddress, _amount);
 
         IHopBridge(bridgeAddress).swapAndSend(
             _srcChainId, // _destination: Domain ID of the destination chain

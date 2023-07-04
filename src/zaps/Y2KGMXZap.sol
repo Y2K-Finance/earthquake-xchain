@@ -80,6 +80,13 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
     /////////////////////////////////////////
     //    INTERNAL & PRIVATE FUNCTIONS     //
     ////////////////////////////////////////
+    /** @notice Deposits fromToken into a Y2K vault
+        @param fromToken The ERC20 token being deposited to the vault
+        @param id The ID of the Y2K vault to deposit into the vault
+        @param amountIn The amount of fromToken being deposited to the vault
+        @param vaultAddress The address of the Y2K vault to deposit into
+        @param receiver The address to receive the Y2K vault shares
+    **/
     function _deposit(
         address fromToken,
         uint256 id,
@@ -91,6 +98,11 @@ contract Y2KGMXZap is IErrors, ISignatureTransfer {
         IEarthquake(vaultAddress).deposit(id, amountIn, receiver);
     }
 
+    /** @notice Swaps tokens on GMC
+        @param path An array of the tokens being swapped between
+        @param toAmountMin The minimum amount of toToken to be received from the swap
+        @return amountOut The amount of toToken received from the swap
+    **/
     function _swap(
         address[] calldata path,
         uint256 toAmountMin

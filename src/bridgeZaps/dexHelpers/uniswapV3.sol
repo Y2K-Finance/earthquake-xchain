@@ -22,11 +22,48 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
     bytes32 internal constant _POOL_INIT_CODE_HASH =
         0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
+    /** @notice constructor
+        @param _uniswapV3Factory The uniswapv3 factory address
+    **/
     constructor(address _uniswapV3Factory) {
         if (_uniswapV3Factory == address(0)) revert InvalidInput();
         uniswapV3Factory = _uniswapV3Factory;
     }
 
+    /////////////////////////////////////////
+    //        PUBLIC FUNCTIONS             //
+    /////////////////////////////////////////
+    /** @notice The callback implementation for UniswapV3 pools
+        @param amount0Delta The amount of token0 received
+        @param amount1Delta The amount of token1 received
+        @param _data The encoded pool address, fee, and tokenOut address
+    **/
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes calldata _data
+    ) external override {
+        require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
+        (address tokenIn, address tokenOut, uint24 fee) = decodePool(_data);
+
+        if (msg.sender != getPool(tokenIn, tokenOut, fee))
+            revert InvalidCaller();
+
+        SafeTransferLib.safeTransfer(
+            ERC20(tokenIn),
+            msg.sender,
+            amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta)
+        );
+    }
+
+    /////////////////////////////////////////
+    //    INTERNAL & PRIVATE FUNCTIONS     //
+    /////////////////////////////////////////
+    /** @notice Decodes the payload and conducts the swaps
+        @param fromAmount The amount of the fromToken being swapped
+        @param payload The encoded payload for the swap - abi.encode(address[] path, uint24[] fee, uint256 minAmountOut)
+        @return amountOut The amount of the toToken received
+    **/
     function _swapUniswapV3(
         uint256 fromAmount,
         bytes memory payload
@@ -59,24 +96,13 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
         if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
     }
 
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata _data
-    ) external override {
-        require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        (address tokenIn, address tokenOut, uint24 fee) = decodePool(_data);
-
-        if (msg.sender != getPool(tokenIn, tokenOut, fee))
-            revert InvalidCaller();
-
-        SafeTransferLib.safeTransfer(
-            ERC20(tokenIn),
-            msg.sender,
-            amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta)
-        );
-    }
-
+    /** @notice Executes the swap with the simulated V3 pool from tokenIn, tokenOut, and fee
+        @param tokenIn The address of the fromToken
+        @param tokenOut The address of the toToken
+        @param fromAmount The amount of fromToken to swap
+        @param fee The fee for the pool
+        @return The amount of toToken received
+    **/
     function _executeSwap(
         address tokenIn,
         address tokenOut,
@@ -110,6 +136,12 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
         }
     }
 
+    /** @notice Simulates the address for the pool of two tokens
+        @param tokenA The address of the first token
+        @param tokenB The address of the second token
+        @param fee The fee for the pool
+        @return pool The address of the pool
+    **/
     function getPool(
         address tokenA,
         address tokenB,
@@ -132,6 +164,10 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
         );
     }
 
+    /** @notice Decodes bytes to retrieve the fee and token addresses
+        @param path The encoded data for fee and tokens
+        @return tokenA tokenB fee
+    **/
     function decodePool(
         bytes memory path
     ) internal pure returns (address tokenA, address tokenB, uint24 fee) {

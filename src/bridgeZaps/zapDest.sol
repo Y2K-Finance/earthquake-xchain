@@ -55,6 +55,19 @@ contract ZapDest is
     );
     event VaultWhitelisted(address vault, address sender);
 
+    /** @notice constructor
+        @dev Calls constructors for BridgeController, UniswapV2Swapper, and UniswapV3Swapper
+        @param _stargateRelayer The address of the Stargate relayer on Arbitrum
+        @param _stargateRelayerEth The address of the Stargate ETH relayer on Ethereum
+        @param _layerZeroRelayer The address of the LayerZero relayer on Arbitrum
+        @param celerBridge The address of the Celer bridge on Arbitrum
+        @param hyphenBridge The address of the Hyphen bridge on Arbitrum
+        @param uniswapV2Factory The address of the Uniswap V2 factory on Arbitrum (fork)
+        @param sushiSwapFactory The address of the SushiSwap factory on Arbitrum (fork)
+        @param uniswapV3Factory The address of the Uniswap V3 factory on Arbitrum (fork)
+        @param _primaryInitHash The init code hash of the Uniswap V2 router on Arbitrum (fork)
+        @param _secondaryInitHash The init code hash of the SushiSwap router on Arbitrum (fork)
+     **/
     constructor(
         address _stargateRelayer,
         address _stargateRelayerEth,
@@ -88,9 +101,10 @@ contract ZapDest is
     //////////////////////////////////////////////
     //                 ADMIN                   //
     //////////////////////////////////////////////
-    /// @notice Admin function to manage the Layerzero trusted addresses for withdrawals
-    /// @param srcChainId The srcChainId as per LayerZero's classification
-    /// @param trustedAddress The address of the LayerZero relayer
+    /** @notice Admin function to manage the Layerzero trusted addresses for withdrawals
+        @param srcChainId The srcChainId as per LayerZero's classification
+        @param trustedAddress The address of the LayerZero relayer
+    **/
     function setTrustedRemoteLookup(
         uint16 srcChainId,
         bytes calldata trustedAddress
@@ -101,9 +115,10 @@ contract ZapDest is
         emit TrustedRemoteAdded(srcChainId, trustedAddress, msg.sender);
     }
 
-    /// @notice Admin function to manage the Hop bridges that can be used
-    /// @param _tokens An array of ERC20 token addresses
-    /// @param _bridges An array of Hop bridge addresses corresponding to each ERC20 token
+    /** @notice Admin function to manage the Hop bridges that can be used
+        @param _tokens An array of ERC20 token addresses
+        @param _bridges An array of Hop bridge addresses corresponding to each ERC20 token
+    **/
     function setTokenToHopBridge(
         address[] calldata _tokens,
         address[] calldata _bridges
@@ -118,8 +133,9 @@ contract ZapDest is
         emit TokenToHopBridgeSet(_tokens, _bridges, msg.sender);
     }
 
-    /// @notice Admin function to manage the vaults the contract can deposit to
-    /// @param _vaultAddress The address of the vault to whitelist on Y2K
+    /** @notice Admin function to manage the vaults the contract can deposit to
+        @param _vaultAddress The address of the vault to whitelist on Y2K
+    **/
     function whitelistVault(address _vaultAddress) external payable onlyOwner {
         if (_vaultAddress == address(0)) revert InvalidInput();
         whitelistedVault[_vaultAddress] = 1;
@@ -129,13 +145,14 @@ contract ZapDest is
     //////////////////////////////////////////////
     //                 PUBLIC                   //
     //////////////////////////////////////////////
-    /// @notice Stargate relayer will invoke this function to bridge tokens with a payload
-    /// @param _chainId The remote chainId sending the tokens
-    /// @param _srcAddress The remote Bridge address
-    /// @param _nonce The message ordering nonce
-    /// @param _token The token contract on the local chain
-    /// @param amountLD The qty of local _token contract tokens
-    /// @param _payload The bytes containing the toAddress
+    /** @notice Stargate relayer will invoke this function to bridge tokens with a payload
+        @param _chainId The remote chainId sending the tokens
+        @param _srcAddress The remote Bridge address
+        @param _nonce The message ordering nonce
+        @param _token The token contract on the local chain
+        @param amountLD The qty of local _token contract tokens
+        @param _payload The bytes containing the toAddress
+    **/
     function sgReceive(
         uint16 _chainId,
         bytes memory _srcAddress,
@@ -152,7 +169,7 @@ contract ZapDest is
             address vaultAddress,
             uint256 depositType
         ) = abi.decode(_payload, (address, uint256, address, uint256));
-        // TODO: In the event we revert - does stargate refund? Or should we have refund addeess?
+        // TODO: In the event we revert - does stargate refund? Or should we have refund address?
         if (id == 0) revert InvalidEpochId();
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
         receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
@@ -169,11 +186,14 @@ contract ZapDest is
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
-    /// @notice LayerZero endpoint will invoke this function to deliver the message on the destination
-    /// @param _srcChainId - the source endpoint identifier
-    /// @param _srcAddress - the source sending contract address from the source chain
-    /// @param _nonce - the ordered message nonce
-    /// @param _payload - the signed payload is the UA bytes has encoded to be sent
+    /** @notice LayerZero endpoint will invoke this function to deliver the message on the destination
+        @dev Payload is decoded to either withdraw, withdrawAndBridge, or withdrawSwapAndBridge
+        @dev Bridging transactions are alway back to the calling chain
+        @param _srcChainId - the source endpoint identifier
+        @param _srcAddress - the source sending contract address from the source chain
+        @param _nonce - the ordered message nonce
+        @param _payload - the signed payload is the UA bytes has encoded to be sent
+    **/
     function lzReceive(
         uint16 _srcChainId,
         bytes memory _srcAddress,
@@ -195,7 +215,6 @@ contract ZapDest is
             addrCounter[fromAddress] += 1;
         }
 
-        // NOTE: Decoding data and slicing payload for swapPayload
         (
             bytes1 funcSelector,
             bytes1 bridgeId,
@@ -220,14 +239,15 @@ contract ZapDest is
         );
     }
 
-    /// @notice Withdrawal function for the user to call on Arbitrum directly
-    /// @param funcSelector The function selector to toggle between withdrawal/withdrawAndBridge/WithdrawSwapAndBridge
-    /// @param bridgeId The id for the bridge that should be used
-    /// @param receiver The address of the receiver
-    /// @param id The id for the epoch being withdraw from
-    /// @param _srcChainId The srcChainId as per LayerZero's classification
-    /// @param vaultAddress The address of the Y2K vault to withdraw from
-    /// @param _withdrawPayload The payload containing information for swapping and bridging
+    /** @notice Withdrawal function for the user to call on Arbitrum directly (without LayerZero relayer)
+        @param funcSelector The function selector to toggle between withdrawal/withdrawAndBridge/WithdrawSwapAndBridge
+        @param bridgeId The id for the bridge that should be used
+        @param receiver The address of the receiver
+        @param id The id for the epoch being withdraw from
+        @param _srcChainId The srcChainId as per LayerZero's classification
+        @param vaultAddress The address of the Y2K vault to withdraw from
+        @param _withdrawPayload The payload containing information for swapping and bridging
+    **/
     function withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
@@ -251,6 +271,17 @@ contract ZapDest is
     //////////////////////////////////////////////
     //                 PRIVATE                  //
     //////////////////////////////////////////////
+    /** @notice Executes withdrawal actions dependent on the function selector
+        @dev If selector is 0x01 we can withdraw then return else we withdraw then checks if we should swap before bridging
+        @dev Will use swapController and/or BridgeController when selector != 0x01
+        @param funcSelector The function selector to toggle between withdrawal/withdrawAndBridge/WithdrawSwapAndBridge
+        @param bridgeId The id for the bridge that should be used
+        @param receiver The address of the receiver
+        @param id The id for the epoch being withdraw from
+        @param _srcChainId The srcChainId as per LayerZero's classification
+        @param vaultAddress The address of the Y2K vault to withdraw from
+        @param _payload The payload containing information for swapping and bridging
+    **/
     function _withdraw(
         bytes1 funcSelector,
         bytes1 bridgeId,
@@ -267,11 +298,10 @@ contract ZapDest is
         if (assets == 0) revert NullBalance();
         delete receiverToVaultToIdToAmount[receiver][vaultAddress][id];
 
-        // NOTE: We check FS!=0x00 (sgReceive()) && FS==0x01 && FS<4
+        // NOTE: We check FS!=0x00 in sgReceive() and if FS==0x01 || FS<4 it would either be 0x01, 0x02, or 0x03
         if (funcSelector == 0x01)
             _withdrawFromVault(id, assets, receiver, vaultAddress);
         else if (uint8(funcSelector) < 4) {
-            // TODO: Hardcode address(this) as a constant
             uint256 amountReceived = _withdrawFromVault(
                 id,
                 assets,
@@ -298,6 +328,13 @@ contract ZapDest is
         emit ReceivedWithdrawal(funcSelector, receiver, assets);
     }
 
+    /** @notice Swaps the fromToken to the token being bridged
+        @dev The segment of the payload used is sliced leaving the payload for bridging
+        @param swapAmount The amount of fromToken to swap
+        @param token The address of the fromToken
+        @param _payload The payload containing information for swapping
+        @return amountOut The amount of toToken received from the swap
+    **/
     function _swapToBridgeToken(
         uint256 swapAmount,
         address token,
