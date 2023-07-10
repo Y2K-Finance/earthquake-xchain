@@ -48,6 +48,7 @@ contract DeployLzScript is Script, Helper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );

@@ -14,6 +14,7 @@ abstract contract Helper is Test {
     address constant WETH_ADDRESS = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
     address constant FRAX_ADDRESS = 0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F;
     address constant DUSD_ADDRESS = 0xF0B5cEeFc89684889e5F7e0A7775Bd100FcD3709;
+    address constant SGETH_ADDRESS = 0x82CbeCF39bEe528B5476FE6d1550af59a9dB6Fc0;
     address constant Y2K_ADDRESS = 0x65c936f008BC34fE819bce9Fa5afD9dc2d49977f;
     address constant sender = address(0x01);
     address constant secondSender = address(0x02);

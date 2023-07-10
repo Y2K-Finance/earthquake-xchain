@@ -8,24 +8,29 @@ import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 
 abstract contract VaultController is IErrors {
     using SafeTransferLib for ERC20;
+    address immutable sgEth;
+
+    constructor(address _sgEth) {
+        if (_sgEth == address(0)) revert InvalidInput();
+        sgEth = _sgEth;
+    }
 
     function _depositToVault(
         uint256 id,
         uint256 amount,
         address receiver,
         address inputToken,
-        address vaultAddress,
-        uint256 depositType
+        address vaultAddress
     ) internal {
-        if (depositType == 1) {
+        if (inputToken == sgEth) {
             IEarthquake(vaultAddress).depositETH{value: address(this).balance}(
                 id,
                 receiver
             );
-        } else if (depositType == 2) {
+        } else {
             ERC20(inputToken).safeApprove(address(vaultAddress), amount);
             IEarthquake(vaultAddress).deposit(id, amount, receiver);
-        } else revert InvalidDepositType();
+        }
     }
 
     function _withdrawFromVault(

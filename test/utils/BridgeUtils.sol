@@ -63,6 +63,7 @@ contract BridgeHelper is Helper, PermitUtils {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -138,8 +139,7 @@ contract BridgeHelper is Helper, PermitUtils {
         address receiver,
         address token,
         uint256 id,
-        address vaultAddress,
-        uint256 depositType
+        address vaultAddress
     )
         internal
         returns (
@@ -159,7 +159,7 @@ contract BridgeHelper is Helper, PermitUtils {
 
         srcAddress = abi.encode(stargateRelayer); // Set to sender address
         nonce = 0;
-        payload = abi.encode(receiver, id, vaultAddress, depositType);
+        payload = abi.encode(receiver, id, vaultAddress);
         chainId = 1; // Set to 1 for mainnet
 
         assertEq(IERC20(token).balanceOf(sender), 0);
@@ -195,7 +195,6 @@ contract BridgeHelper is Helper, PermitUtils {
         address _vaultAddress
     ) internal returns (uint256) {
         address token = WETH_ADDRESS;
-        uint256 depositType = 2;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -207,8 +206,7 @@ contract BridgeHelper is Helper, PermitUtils {
                 _depositor,
                 token,
                 EPOCH_ID,
-                _vaultAddress,
-                depositType
+                _vaultAddress
             );
         vm.prank(stargateRelayer);
         zapDest.sgReceive(

@@ -86,7 +86,6 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_depositWithSgReceive() public {
         address token = WETH_ADDRESS;
-        uint256 depositType = 2;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -98,8 +97,7 @@ contract BridgeDestTests is BridgeHelper {
                 sender,
                 token,
                 EPOCH_ID,
-                EARTHQUAKE_VAULT,
-                depositType
+                EARTHQUAKE_VAULT
             );
 
         vm.startPrank(stargateRelayer);
@@ -131,7 +129,6 @@ contract BridgeDestTests is BridgeHelper {
 
     function test_depositEthWithSgReceive() public {
         address token = WETH_ADDRESS;
-        uint256 depositType = 1;
         (
             bytes memory srcAddress,
             uint64 nonce,
@@ -143,8 +140,7 @@ contract BridgeDestTests is BridgeHelper {
                 sender,
                 token,
                 EPOCH_ID,
-                EARTHQUAKE_VAULT,
-                depositType
+                EARTHQUAKE_VAULT
             );
         // NOTE: Overwriting for ETH
         uint256 amount = 1e17;
@@ -161,7 +157,7 @@ contract BridgeDestTests is BridgeHelper {
             uint16(chainId),
             srcAddress,
             nonce,
-            token,
+            SGETH_ADDRESS, // NOTE: SGETH used to recognise ETH deposits
             amount,
             payload
         );
@@ -632,6 +628,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -646,6 +643,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -660,6 +658,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -674,6 +673,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -688,6 +688,7 @@ contract BridgeDestTests is BridgeHelper {
             address(0),
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -702,6 +703,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             address(0),
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
         );
@@ -715,6 +717,22 @@ contract BridgeDestTests is BridgeHelper {
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
+            address(0),
+            SGETH_ADDRESS,
+            PRIMARY_INIT_HASH_ARB,
+            SECONDARY_INIT_HASH_ARB
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        new ZapDest(
+            stargateRelayer,
+            stargateRelayerEth,
+            layerZeroRelayer,
+            CELER_BRIDGE,
+            HYPHEN_BRIDGE,
+            CAMELOT_FACTORY,
+            SUSHI_V2_FACTORY,
+            UNISWAP_V3_FACTORY,
             address(0),
             PRIMARY_INIT_HASH_ARB,
             SECONDARY_INIT_HASH_ARB
@@ -730,6 +748,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             bytes(""),
             SECONDARY_INIT_HASH_ARB
         );
@@ -744,6 +763,7 @@ contract BridgeDestTests is BridgeHelper {
             CAMELOT_FACTORY,
             SUSHI_V2_FACTORY,
             UNISWAP_V3_FACTORY,
+            SGETH_ADDRESS,
             PRIMARY_INIT_HASH_ARB,
             bytes("")
         );
@@ -783,13 +803,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 chainId = 0;
         bytes memory data = "";
         uint256 nonce = 0;
-        uint256 depositType = 1;
-        bytes memory payload = abi.encode(
-            sender,
-            0,
-            EARTHQUAKE_VAULT_USDT,
-            depositType
-        );
+        bytes memory payload = abi.encode(sender, 0, EARTHQUAKE_VAULT_USDT);
 
         vm.startPrank(stargateRelayer);
         vm.expectRevert(IErrors.InvalidEpochId.selector);
@@ -801,12 +815,10 @@ contract BridgeDestTests is BridgeHelper {
         uint16 chainId = 0;
         bytes memory data = "";
         uint256 nonce = 0;
-        uint256 depositType = 1;
         bytes memory payload = abi.encode(
             sender,
             EPOCH_ID,
-            EARTHQUAKE_VAULT_USDT,
-            depositType
+            EARTHQUAKE_VAULT_USDT
         );
 
         vm.startPrank(stargateRelayer);
@@ -815,23 +827,23 @@ contract BridgeDestTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function testErrors_sgReceiveInvalidDepositType() public {
+    function testErrors_sgReceiveInvalidFromToken() public {
         uint16 chainId = 0;
         bytes memory data = "";
         uint256 nonce = 0;
-        uint256 depositType = 0;
         bytes memory payload = abi.encode(
             sender,
             EPOCH_ID,
-            EARTHQUAKE_VAULT,
-            depositType
+            EARTHQUAKE_VAULT_USDT
         );
 
         vm.startPrank(stargateRelayer);
-        vm.expectRevert(IErrors.InvalidDepositType.selector);
+        vm.expectRevert(IErrors.InvalidVault.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
         vm.stopPrank();
     }
+
+    // TODO: Invalid fromToken!!
 
     function testErrors_lzReceiveInvalidCallerSender() public {
         uint16 srcChainId = 1;
@@ -984,6 +996,9 @@ contract BridgeDestTests is BridgeHelper {
         bytes1 swapId = 0x00;
         bytes1 dexId = 0x01;
         address toToken = USDC_ADDRESS;
+        address[] memory path = new address[](2);
+        path[0] = WETH_ADDRESS;
+        path[1] = toToken;
 
         bytes memory payload = abi.encode(
             funcSelector,
@@ -994,7 +1009,7 @@ contract BridgeDestTests is BridgeHelper {
             swapId,
             (amount * 9999) / 10_000,
             dexId,
-            toToken,
+            path,
             500
         );
 

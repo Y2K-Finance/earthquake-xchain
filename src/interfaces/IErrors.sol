@@ -13,6 +13,6 @@ interface IErrors {
     error InvalidVault();
     error InvalidHopBridge();
     error InvalidEpochId();
+    error InvalidFromToken();
     error NullBalance();
-    error InvalidDepositType();
 }

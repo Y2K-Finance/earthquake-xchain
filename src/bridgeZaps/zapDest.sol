@@ -5,8 +5,8 @@ import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {VaultController, IEarthquake} from "./controllers/vaultController.sol";
 import {BridgeController} from "./controllers/bridgeController.sol";
 import {BytesLib} from "../libraries/BytesLib.sol";
-import {UniswapV3Swapper} from "./dexHelpers/uniswapV3.sol";
-import {UniswapV2Swapper} from "./dexHelpers/uniswapV2.sol";
+import {UniswapV3Swapper} from "./dexHelpers/uniswapV3Dest.sol";
+import {UniswapV2Swapper} from "./dexHelpers/uniswapV2Dest.sol";
 
 import {IStargateReceiver} from "../interfaces/bridges/IStargateReceiver.sol";
 import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
@@ -60,11 +60,12 @@ contract ZapDest is
         @param _stargateRelayer The address of the Stargate relayer on Arbitrum
         @param _stargateRelayerEth The address of the Stargate ETH relayer on Ethereum
         @param _layerZeroRelayer The address of the LayerZero relayer on Arbitrum
-        @param celerBridge The address of the Celer bridge on Arbitrum
-        @param hyphenBridge The address of the Hyphen bridge on Arbitrum
-        @param uniswapV2Factory The address of the Uniswap V2 factory on Arbitrum (fork)
-        @param sushiSwapFactory The address of the SushiSwap factory on Arbitrum (fork)
-        @param uniswapV3Factory The address of the Uniswap V3 factory on Arbitrum (fork)
+        @param _celerBridge The address of the Celer bridge on Arbitrum
+        @param _hyphenBridge The address of the Hyphen bridge on Arbitrum
+        @param _uniswapV2Factory The address of the Uniswap V2 factory on Arbitrum (fork)
+        @param _sushiSwapFactory The address of the SushiSwap factory on Arbitrum (fork)
+        @param _uniswapV3Factory The address of the Uniswap V3 factory on Arbitrum (fork)
+        @param _sgEth The Stargate Eth address on Arbitrum
         @param _primaryInitHash The init code hash of the Uniswap V2 router on Arbitrum (fork)
         @param _secondaryInitHash The init code hash of the SushiSwap router on Arbitrum (fork)
      **/
@@ -72,23 +73,25 @@ contract ZapDest is
         address _stargateRelayer,
         address _stargateRelayerEth,
         address _layerZeroRelayer,
-        address celerBridge,
-        address hyphenBridge,
-        address uniswapV2Factory,
-        address sushiSwapFactory,
-        address uniswapV3Factory,
+        address _celerBridge,
+        address _hyphenBridge,
+        address _uniswapV2Factory,
+        address _sushiSwapFactory,
+        address _uniswapV3Factory,
+        address _sgEth,
         bytes memory _primaryInitHash,
         bytes memory _secondaryInitHash
     )
         payable
-        BridgeController(celerBridge, hyphenBridge)
+        VaultController(_sgEth)
+        BridgeController(_celerBridge, _hyphenBridge)
         UniswapV2Swapper(
-            uniswapV2Factory,
-            sushiSwapFactory,
+            _uniswapV2Factory,
+            _sushiSwapFactory,
             _primaryInitHash,
             _secondaryInitHash
         )
-        UniswapV3Swapper(uniswapV3Factory)
+        UniswapV3Swapper(_uniswapV3Factory)
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
         if (_stargateRelayerEth == address(0)) revert InvalidInput();
@@ -163,26 +166,17 @@ contract ZapDest is
     ) external payable override {
         if (msg.sender != stargateRelayer && msg.sender != stargateRelayerEth)
             revert InvalidCaller();
-        (
-            address receiver,
-            uint256 id,
-            address vaultAddress,
-            uint256 depositType
-        ) = abi.decode(_payload, (address, uint256, address, uint256));
+        (address receiver, uint256 id, address vaultAddress) = abi.decode(
+            _payload,
+            (address, uint256, address)
+        );
         // TODO: In the event we revert - does stargate refund? Or should we have refund address?
         if (id == 0) revert InvalidEpochId();
         if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
         receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
 
         // TODO: Hardcode address(this) as a constant
-        _depositToVault(
-            id,
-            amountLD,
-            address(this),
-            _token,
-            vaultAddress,
-            depositType
-        );
+        _depositToVault(id, amountLD, address(this), _token, vaultAddress);
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
@@ -355,7 +349,8 @@ contract ZapDest is
             amountOut = _swapUniswapV2(
                 dexId,
                 swapAmount,
-                abi.encode(path, toAmountMin) // swapPayload
+                path,
+                toAmountMin // swapPayload
             );
             _payload = _payload.sliceBytes(128, _payload.length - 128);
         } else if (swapId == 0x02) {
@@ -364,10 +359,7 @@ contract ZapDest is
                 _payload,
                 (bytes1, uint256, bytes1, address, uint24)
             );
-            amountOut = _swapUniswapV3(
-                swapAmount,
-                abi.encode(path, fee, toAmountMin) // swapPayload
-            );
+            amountOut = _swapUniswapV3(swapAmount, path, fee, toAmountMin);
             _payload = _payload.sliceBytes(160, _payload.length - 160);
         } else revert InvalidSwapId();
         return (toToken, _payload, amountOut);
