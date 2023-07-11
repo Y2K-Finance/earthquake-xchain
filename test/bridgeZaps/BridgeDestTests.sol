@@ -249,6 +249,61 @@ contract BridgeDestTests is BridgeHelper {
         assertGe(IERC20(WETH_ADDRESS).balanceOf(sender), amountOut);
     }
 
+    function testWithdrawRefundERC20() public {
+        uint16 chainId = 0;
+        bytes memory data = "";
+        uint256 nonce = 0;
+        bytes memory payload = abi.encode(sender, 0, EARTHQUAKE_VAULT_USDT);
+
+        uint256 amount = 10e6;
+        deal(USDC_ADDRESS, sender, amount);
+        uint256 balance = IERC20(USDC_ADDRESS).balanceOf(sender);
+
+        vm.prank(sender);
+        IERC20(USDC_ADDRESS).transfer(address(zapDest), amount);
+
+        vm.startPrank(stargateRelayer);
+
+        vm.expectEmit(true, true, true, false);
+        emit RefundStaged(sender, USDC_ADDRESS, amount);
+        zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, amount, payload);
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), amount);
+        vm.stopPrank();
+
+        vm.expectEmit(true, true, true, false);
+        emit RefundClaimed(sender, USDC_ADDRESS, amount);
+        zapDest.claimRefund(USDC_ADDRESS, sender);
+
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), 0);
+        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), balance);
+    }
+
+    function testWithdrawRefundEth() public {
+        uint16 chainId = 0;
+        bytes memory data = "";
+        uint256 nonce = 0;
+        bytes memory payload = abi.encode(sender, 0, EARTHQUAKE_VAULT_USDT);
+
+        uint256 amount = 1e18;
+        vm.deal(sender, amount);
+        uint256 balance = sender.balance;
+
+        vm.prank(sender);
+        payable(address(zapDest)).transfer(amount);
+
+        vm.startPrank(stargateRelayer);
+        zapDest.sgReceive(chainId, data, nonce, SGETH_ADDRESS, amount, payload);
+        assertEq(zapDest.eligibleRefund(sender, SGETH_ADDRESS), amount);
+        vm.stopPrank();
+
+        vm.expectEmit(true, true, true, false);
+        emit RefundClaimed(sender, USDC_ADDRESS, amount);
+        zapDest.claimRefund(SGETH_ADDRESS, sender);
+
+        assertEq(zapDest.eligibleRefund(sender, SGETH_ADDRESS), 0);
+        assertEq(sender.balance, balance);
+    }
+
     /////////////////////////////////////////
     //              BRIDGE FUNCTIONS       //
     /////////////////////////////////////////
@@ -310,7 +365,6 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
     function test_withdrawAndBridgeWithHop() private {
         // Deposits to the valut as the sender
         _depositToVault(sender, EARTHQUAKE_VAULT);
@@ -806,8 +860,11 @@ contract BridgeDestTests is BridgeHelper {
         bytes memory payload = abi.encode(sender, 0, EARTHQUAKE_VAULT_USDT);
 
         vm.startPrank(stargateRelayer);
-        vm.expectRevert(IErrors.InvalidEpochId.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), 100);
+
+        zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), 200);
         vm.stopPrank();
     }
 
@@ -822,28 +879,34 @@ contract BridgeDestTests is BridgeHelper {
         );
 
         vm.startPrank(stargateRelayer);
-        vm.expectRevert(IErrors.InvalidVault.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
-        vm.stopPrank();
-    }
-
-    function testErrors_sgReceiveInvalidFromToken() public {
-        uint16 chainId = 0;
-        bytes memory data = "";
-        uint256 nonce = 0;
-        bytes memory payload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT_USDT
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), 100);
+        assertEq(
+            zapDest.receiverToVaultToIdToAmount(
+                sender,
+                EARTHQUAKE_VAULT_USDT,
+                EPOCH_ID
+            ),
+            0
         );
 
-        vm.startPrank(stargateRelayer);
-        vm.expectRevert(IErrors.InvalidVault.selector);
         zapDest.sgReceive(chainId, data, nonce, USDC_ADDRESS, 100, payload);
+        assertEq(zapDest.eligibleRefund(sender, USDC_ADDRESS), 200);
+        assertEq(
+            zapDest.receiverToVaultToIdToAmount(
+                sender,
+                EARTHQUAKE_VAULT_USDT,
+                EPOCH_ID
+            ),
+            0
+        );
         vm.stopPrank();
     }
 
-    // TODO: Invalid fromToken!!
+    function testErrors_ineligibleRefund() public {
+        vm.expectRevert(IErrors.IneligibleRefund.selector);
+        zapDest.claimRefund(USDC_ADDRESS, sender);
+    }
 
     function testErrors_lzReceiveInvalidCallerSender() public {
         uint16 srcChainId = 1;

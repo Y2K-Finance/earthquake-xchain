@@ -40,6 +40,9 @@ contract BridgeHelper is Helper, PermitUtils {
     );
     event VaultWhitelisted(address vault, address sender);
 
+    event RefundStaged(address sender, address token, uint256 amount);
+    event RefundClaimed(address sender, address token, uint256 amount);
+
     /////////////////////////////////////////
     //               CONFIG                //
     /////////////////////////////////////////

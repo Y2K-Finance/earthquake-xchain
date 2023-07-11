@@ -170,13 +170,22 @@ contract ZapDest is
             _payload,
             (address, uint256, address)
         );
-        // TODO: In the event we revert - does stargate refund? Or should we have refund address?
-        if (id == 0) revert InvalidEpochId();
-        if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
-        receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
 
+        if (id == 0) return _stageRefund(receiver, _token, amountLD);
+        if (whitelistedVault[vaultAddress] != 1)
+            return _stageRefund(receiver, _token, amountLD);
         // TODO: Hardcode address(this) as a constant
-        _depositToVault(id, amountLD, address(this), _token, vaultAddress);
+        bool success = _depositToVault(
+            id,
+            amountLD,
+            address(this),
+            _token,
+            vaultAddress,
+            receiver
+        );
+        if (!success) return _stageRefund(receiver, _token, amountLD);
+
+        receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
         emit ReceivedDeposit(_token, address(this), amountLD);
     }
 
@@ -260,6 +269,10 @@ contract ZapDest is
             vaultAddress,
             _withdrawPayload
         );
+    }
+
+    function claimRefund(address token, address sender) external {
+        _claimRefund(sender, token);
     }
 
     //////////////////////////////////////////////

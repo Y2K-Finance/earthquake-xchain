@@ -15,4 +15,5 @@ interface IErrors {
     error InvalidEpochId();
     error InvalidFromToken();
     error NullBalance();
+    error IneligibleRefund();
 }
