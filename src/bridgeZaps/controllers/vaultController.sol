@@ -6,8 +6,6 @@ import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 import {IEarthquake} from "../../interfaces/IEarthquake.sol";
 
-import "forge-std/console.sol";
-
 abstract contract VaultController is IErrors {
     using SafeTransferLib for ERC20;
     address immutable sgEth;
@@ -17,31 +15,40 @@ abstract contract VaultController is IErrors {
 
     mapping(address => mapping(address => uint256)) public eligibleRefund;
 
+    /** @notice constructor
+        @param _sgEth The address of StargateEth on Arbitrum
+     **/
     constructor(address _sgEth) {
         if (_sgEth == address(0)) revert InvalidInput();
         sgEth = _sgEth;
     }
 
+    /** @notice Deposit ERC20 or ETH to the vault
+        @param id The epoch id for the Y2K vault
+        @param amount The amount of the token to deposit
+        @param inputToken The address of the token to deposit
+        @param vaultAddress The address of the vault to deposit to
+        @return bool Whether the deposit tx was successful
+    **/
     function _depositToVault(
         uint256 id,
         uint256 amount,
-        address receiver,
         address inputToken,
-        address vaultAddress,
-        address refundReceiver
+        address vaultAddress
     ) internal returns (bool) {
         if (inputToken == sgEth) {
             try
-                IEarthquake(vaultAddress).depositETH{
-                    value: address(this).balance
-                }(id, receiver)
+                IEarthquake(vaultAddress).depositETH{value: amount}(
+                    id,
+                    address(this)
+                )
             {} catch {
                 return false;
             }
         } else {
             ERC20(inputToken).safeApprove(address(vaultAddress), amount);
             try
-                IEarthquake(vaultAddress).deposit(id, amount, receiver)
+                IEarthquake(vaultAddress).deposit(id, amount, address(this))
             {} catch {
                 return false;
             }
@@ -49,6 +56,12 @@ abstract contract VaultController is IErrors {
         return true;
     }
 
+    /** @notice Withdraw from the vault
+        @param id The epoch id for the Y2K vault
+        @param assets The amount of the token to withdraw
+        @param receiver The address to receive the withdrawn tokens
+        @param vaultAddress The address of the vault to withdraw from
+    **/
     function _withdrawFromVault(
         uint256 id,
         uint256 assets,
@@ -67,6 +80,11 @@ abstract contract VaultController is IErrors {
     //////////////////////////////////////////////
     //                 REFUND LOGIC             //
     //////////////////////////////////////////////
+    /** @notice Stage a refund for the original sender
+        @param sender The address of the original sender
+        @param token The address of the token to refund
+        @param amount The amount of the token to refund
+    **/
     function _stageRefund(
         address sender,
         address token,
@@ -76,6 +94,10 @@ abstract contract VaultController is IErrors {
         emit RefundStaged(sender, token, amount);
     }
 
+    /** @notice Claim a refund for the original sender and token
+        @param sender The address of the original sender
+        @param token The address of the token to refund
+    **/
     function _claimRefund(address sender, address token) internal {
         uint256 amount = eligibleRefund[sender][token];
         if (amount == 0) revert IneligibleRefund();

@@ -175,14 +175,7 @@ contract ZapDest is
         if (whitelistedVault[vaultAddress] != 1)
             return _stageRefund(receiver, _token, amountLD);
         // TODO: Hardcode address(this) as a constant
-        bool success = _depositToVault(
-            id,
-            amountLD,
-            address(this),
-            _token,
-            vaultAddress,
-            receiver
-        );
+        bool success = _depositToVault(id, amountLD, _token, vaultAddress);
         if (!success) return _stageRefund(receiver, _token, amountLD);
 
         receiverToVaultToIdToAmount[receiver][vaultAddress][id] += amountLD;
@@ -210,14 +203,7 @@ contract ZapDest is
         ) revert InvalidCaller();
 
         address fromAddress;
-        assembly {
-            fromAddress := mload(add(_srcAddress, 20))
-        }
-        // TODO: Iterate the addrCounter - suggested by LZ?
-        unchecked {
-            addrCounter[fromAddress] += 1;
-        }
-
+        // TODO: Need additional logic to prevent malicious withdrawals to dead chains not by user
         (
             bytes1 funcSelector,
             bytes1 bridgeId,
@@ -260,6 +246,7 @@ contract ZapDest is
         address vaultAddress,
         bytes memory _withdrawPayload
     ) external {
+        // TODO: Make sure the caller is the receiver
         _withdraw(
             funcSelector,
             bridgeId,
@@ -271,6 +258,10 @@ contract ZapDest is
         );
     }
 
+    /** @notice Refund tokens or eth to the original sender - only callable when an sgReceive tx fails
+        @param token The origin token bridged (sgETH address used when bridged ETH)
+        @param sender The original sender of the bridged tokens
+    **/
     function claimRefund(address token, address sender) external {
         _claimRefund(sender, token);
     }
@@ -298,7 +289,6 @@ contract ZapDest is
         address vaultAddress,
         bytes memory _payload
     ) private {
-        if (whitelistedVault[vaultAddress] != 1) revert InvalidVault();
         uint256 assets = receiverToVaultToIdToAmount[receiver][vaultAddress][
             id
         ];

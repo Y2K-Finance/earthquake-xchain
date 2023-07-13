@@ -8,8 +8,6 @@ import {IHyphenBridge} from "../../interfaces/bridges/IHyphenBridge.sol";
 import {IHopBridge} from "../../interfaces/bridges/IHopBridge.sol";
 import {IErrors} from "../../interfaces/IErrors.sol";
 
-import "forge-std/console.sol";
-
 abstract contract BridgeController is IErrors {
     using SafeTransferLib for ERC20;
     ICelerBridge public immutable celerBridge;
@@ -17,7 +15,7 @@ abstract contract BridgeController is IErrors {
 
     mapping(address => address) public tokenToHopBridge;
 
-    /** @notice Invoked by zapDest
+    /** @notice constructor
         @param _celerBridge The address of Celer Bridge
         @param _hyphenBridge The address of Hyphen Bridge
     **/

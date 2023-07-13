@@ -954,31 +954,6 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
-    function testErrors_withdrawInvalidVault() public {
-        uint16 srcChainId = 1;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
-        uint64 nonce = 0;
-
-        // Encode data
-        bytes1 funcSelector = 0x01;
-        bytes1 bridgeId = 0x00;
-        bytes memory payload = abi.encode(
-            funcSelector,
-            bridgeId,
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT_USDT
-        );
-
-        // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
-        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
-
-        vm.startPrank(layerZeroRelayer);
-        vm.expectRevert(IErrors.InvalidVault.selector);
-        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
-    }
-
     function testErrors_withdrawNullBalance() public {
         uint16 srcChainId = 1;
         bytes memory srcAddress = abi.encode(layerZeroRelayer);
