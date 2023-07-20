@@ -12,6 +12,8 @@ import {IEarthQuakeVault, IERC1155, IEarthquakeController, IStargateRouter, IBal
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
 import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
 
+import "forge-std/console.sol";
+
 contract BridgeFromTests is BridgeHelper {
     uint16 public ethRouterPoolId = 13;
     address public constant stargateFactory =
@@ -35,6 +37,25 @@ contract BridgeFromTests is BridgeHelper {
             ethRouterPoolId
         );
     }
+
+    // function testPayload() external {
+    //     address receiver = refundSender;
+    //     bytes1 funcSelector = 0x01;
+    //     bytes1 bridgeId = 0x02;
+    //     address vaultAddress = SGETH_ADDRESS;
+    //     bytes memory payload = abi.encode(
+    //         funcSelector,
+    //         bridgeId,
+    //         receiver,
+    //         EPOCH_ID,
+    //         vaultAddress
+    //     );
+
+    //     console.logAddress(address(this));
+    //     console.logBytes(payload);
+
+    //     zapFrom.replaceReceiver(payload);
+    // }
 
     /////////////////////////////////////////
     //               STATE VARS            //
