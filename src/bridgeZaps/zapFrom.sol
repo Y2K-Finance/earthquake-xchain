@@ -5,6 +5,7 @@ import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {WETH} from "lib/solmate/src/tokens/WETH.sol";
 import {SwapController} from "./controllers/swapController.sol";
+import {BytesLib} from "../libraries/BytesLib.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
@@ -208,6 +209,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     **/
     function withdraw(bytes memory payload) external payable {
         if (msg.value == 0) revert InvalidInput();
+        payload = replaceReceiver(payload);
         ILayerZeroRouter(layerZeroRouter).send{value: msg.value}(
             uint16(ARBITRUM_CHAIN_ID), // destination LayerZero chainId
             layerZeroRemoteAndLocal, // send to this address on the destination
@@ -221,6 +223,24 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+    /** @notice Slices the msg.sender into the 32 byte slot reserved for receiver
+        @dev Data is decoded on the destChain and receiver is used for withdrawal - limits withdrawals to owners
+        @param payload The data to be decoded and used for withdrawal action on the destChain
+    **/
+    function replaceReceiver(
+        bytes memory payload
+    ) internal view returns (bytes memory) {
+        payload = BytesLib.concat(
+            BytesLib.concat(
+                BytesLib.sliceBytes(payload, 0, 0x40),
+                abi.encode(msg.sender)
+            ),
+            BytesLib.sliceBytes(payload, 0x60, payload.length - 0x60)
+        );
+
+        return payload;
+    }
+
     /** @notice Checks msg.value and amountIn for valid input
         @dev Message value must be > 0 to pay for Stargate/LayerZero relayer fees
         @param amountIn The amount of fromToken in
