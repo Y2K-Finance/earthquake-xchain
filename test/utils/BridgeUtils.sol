@@ -10,6 +10,7 @@ import {PermitUtils} from "./PermitUtils.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IEarthQuakeVault, IERC1155} from "../utils/Interfaces.sol";
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
+import {IPermit2} from "./IPermit2.sol";
 
 contract BridgeHelper is Helper, PermitUtils {
     address stargateRelayer;
@@ -18,6 +19,7 @@ contract BridgeHelper is Helper, PermitUtils {
 
     ZapDest public zapDest;
     ZapFrom public zapFrom;
+    IPermit2 public permit2;
 
     uint256 mainnetFork;
     uint256 arbitrumFork;
@@ -115,12 +117,13 @@ contract BridgeHelper is Helper, PermitUtils {
         vm.label(STARGATE_ROUTER, "STG ERC20");
         vm.label(STARGATE_ROUTER_USINGETH, "STG ETH");
 
+        permit2 = IPermit2(PERMIT_2);
         permitSender = vm.addr(permitSenderKey);
         permitReceiver = vm.addr(permitReceiverKey);
         vm.label(permitSender, "PermitSender");
         vm.label(permitReceiver, "PermitReceiver");
 
-        setERC20TestTokenApprovals(vm, permitReceiver, PERMIT_2);
+        setERC20TestTokenApprovals(vm, permitSender, PERMIT_2);
     }
 
     function setERC20TestTokenApprovals(
@@ -393,6 +396,12 @@ contract BridgeHelper is Helper, PermitUtils {
         uint256 nonce = 0;
         permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
         transferDetails = getTransferDetails(receiver, fromAmount);
-        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
+        bytes32 domainSeparator = permit2.DOMAIN_SEPARATOR();
+        sig = getPermitTransferSignature(
+            permit,
+            permitSenderKey,
+            spender,
+            domainSeparator
+        );
     }
 }

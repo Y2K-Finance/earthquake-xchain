@@ -49,11 +49,12 @@ contract PermitUtils is Test {
     function getPermitTransferSignature(
         ISignatureTransfer.PermitTransferFrom memory permit,
         uint256 privateKey,
-        address spender
+        address spender,
+        bytes32 domainSeparator
     ) internal pure returns (bytes memory sig) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(
             privateKey,
-            _getEIP712Hash(permit, spender)
+            _getEIP712Hash(permit, spender, domainSeparator)
         );
         return bytes.concat(r, s, bytes1(v));
     }
@@ -62,13 +63,14 @@ contract PermitUtils is Test {
     // Normally this would be implemented off-chain.
     function _getEIP712Hash(
         ISignatureTransfer.PermitTransferFrom memory permit,
-        address spender
+        address spender,
+        bytes32 domainSeparator
     ) internal pure returns (bytes32 h) {
         return
             keccak256(
                 abi.encodePacked(
                     "\x19\x01",
-                    DOMAIN_SEPARATOR,
+                    domainSeparator,
                     keccak256(
                         abi.encode(
                             _PERMIT_TRANSFER_FROM_TYPEHASH,

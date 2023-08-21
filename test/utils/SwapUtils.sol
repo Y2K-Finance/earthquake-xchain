@@ -42,6 +42,7 @@ contract SwapHelper is Helper, PermitUtils {
     Y2KGMXZap public zapGMX;
     Y2KTraderJoeZap public zapTraderJoe;
     Y2KvlZap public zapvlY2K;
+    IPermit2 public permit2;
 
     address constant depositReceiver = address(0x11);
 
@@ -96,6 +97,7 @@ contract SwapHelper is Helper, PermitUtils {
         vm.label(address(zapTraderJoe), "Trader Joe Zapper");
         vm.label(address(zapCurve), "Curve Zapper");
 
+        permit2 = IPermit2(PERMIT_2);
         permitSender = vm.addr(permitSenderKey);
         permitReceiver = vm.addr(permitReceiverKey);
         vm.label(permitSender, "PermitSender");
@@ -794,6 +796,12 @@ contract SwapHelper is Helper, PermitUtils {
         uint256 nonce = 0;
         permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
         transferDetails = getTransferDetails(receiver, fromAmount);
-        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
+        bytes32 domainSeparator = permit2.DOMAIN_SEPARATOR();
+        sig = getPermitTransferSignature(
+            permit,
+            permitSenderKey,
+            spender,
+            domainSeparator
+        );
     }
 }

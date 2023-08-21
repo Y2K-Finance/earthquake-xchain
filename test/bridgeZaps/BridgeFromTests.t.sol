@@ -12,8 +12,6 @@ import {IEarthQuakeVault, IERC1155, IEarthquakeController, IStargateRouter, IBal
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
 import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
 
-import "forge-std/console.sol";
-
 contract BridgeFromTests is BridgeHelper {
     uint16 public ethRouterPoolId = 13;
     address public constant stargateFactory =
@@ -538,40 +536,7 @@ contract BridgeFromTests is BridgeHelper {
     /////////////////////////////////////////
     // BRIDGE & PERMIT2 SWAP FUNCTIONS ERC20//
     /////////////////////////////////////////
-    function test_PermitTransferFrom() private {
-        vm.startPrank(permitSender);
-        uint256 fromAmount = 10e6;
-
-        deal(USDC_ADDRESS_ETH, permitSender, fromAmount);
-        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(permitSender), fromAmount);
-
-        (
-            ISignatureTransfer.PermitTransferFrom memory permit,
-            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
-            bytes memory sig
-        ) = setupPermitSwap(
-                permitReceiver,
-                permitReceiver,
-                fromAmount,
-                USDC_ADDRESS_ETH
-            );
-        vm.startPrank(permitReceiver);
-        Permit2(PERMIT_2).permitTransferFrom(
-            permit,
-            transferDetails,
-            permitSender,
-            sig
-        );
-
-        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(permitSender), 0);
-        assertEq(
-            IERC20(USDC_ADDRESS_ETH).balanceOf(permitReceiver),
-            fromAmount
-        );
-        vm.stopPrank();
-    }
-
-    function test_permitSwapUniV2bridge() private {
+    function test_permitSwapUniV2bridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
@@ -590,11 +555,10 @@ contract BridgeFromTests is BridgeHelper {
             EARTHQUAKE_VAULT
         );
 
+        vm.startPrank(permitSender);
         vm.deal(permitSender, 1e18);
         deal(fromToken, permitSender, amountIn);
         assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
-
-        vm.startPrank(permitSender);
         (
             ISignatureTransfer.PermitTransferFrom memory permit,
             ISignatureTransfer.SignatureTransferDetails memory transferDetails,
@@ -622,7 +586,7 @@ contract BridgeFromTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function test_permitSwapSushibridge() private {
+    function test_permitSwapSushibridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
@@ -661,7 +625,7 @@ contract BridgeFromTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function test_permitSwapUniV3bridge() private {
+    function test_permitSwapUniV3bridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
