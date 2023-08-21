@@ -6,18 +6,21 @@ import "forge-std/console2.sol";
 import "../../test/utils/Helper.sol";
 import "../../src/bridgeZaps/zapDest.sol";
 import "../../src/bridgeZaps/zapFrom.sol";
+import "../../src/bridgeZaps/mock/mockVault.sol";
 
 // forge script DeployLzScript --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 // forge script DeployLzScript --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 // forge script DeployLzScript --rpc-url $OPTIMISM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 contract DeployLzScript is Script, Helper {
     uint256 network;
+    bool deployMockVault;
     address public stargateRelayer = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
     address public stargateRelayerEth =
         0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
 
     function setUp() public {
-        network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism
+        network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism, 999: null network to deploy vault
+        deployMockVault = true;
         y2kArbRouter = 0x546355099673a055F3a3aAb7007b9f0F5567832a;
     }
 
@@ -31,11 +34,18 @@ contract DeployLzScript is Script, Helper {
             _deployToArbitrum();
         } else if (network == 10) {
             _deployToOptimism();
+        } else if (deployMockVault) {
+            _deployMockVault();
         } else {
             revert();
         }
 
         vm.stopBroadcast();
+    }
+
+    function _deployMockVault() internal {
+        MockVault mockVault = new MockVault(WETH_ADDRESS);
+        console2.logAddress(address(mockVault));
     }
 
     function _deployToArbitrum() internal {

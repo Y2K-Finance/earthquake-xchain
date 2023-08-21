@@ -38,35 +38,24 @@ contract BridgeFromTests is BridgeHelper {
         );
     }
 
-    // function testPayload() external {
-    //     address receiver = refundSender;
-    //     bytes1 funcSelector = 0x01;
-    //     bytes1 bridgeId = 0x02;
-    //     address vaultAddress = SGETH_ADDRESS;
-    //     bytes memory payload = abi.encode(
-    //         funcSelector,
-    //         bridgeId,
-    //         receiver,
-    //         EPOCH_ID,
-    //         vaultAddress
-    //     );
-
-    //     console.logAddress(address(this));
-    //     console.logBytes(payload);
-
-    //     zapFrom.replaceReceiver(payload);
-    // }
-
     /////////////////////////////////////////
     //               STATE VARS            //
     /////////////////////////////////////////
     function test_stateVarsFrom() public {
+        assertEq(address(zapFrom.permit2()), PERMIT_2);
         assertEq(zapFrom.stargateRouter(), STARGATE_ROUTER);
         assertEq(zapFrom.stargateRouterEth(), STARGATE_ROUTER_USINGETH);
+        assertEq(zapFrom.layerZeroRouter(), LAYER_ZERO_ROUTER_LOCAL);
+        assertEq(zapFrom.y2kArbRouter(), y2kArbRouter);
+        assertEq(
+            zapFrom.layerZeroRemoteAndLocal(),
+            abi.encodePacked(y2kArbRouter, address(zapFrom))
+        );
         assertEq(zapFrom.uniswapV2ForkFactory(), UNISWAP_V2_FACTORY);
         assertEq(zapFrom.sushiFactory(), SUSHI_V2_FACTORY_ETH);
         assertEq(zapFrom.uniswapV3Factory(), UNISWAP_V3_FACTORY);
         assertEq(zapFrom.balancerVault(), BALANCER_VAULT);
+        assertEq(zapFrom.wethAddress(), WETH_ADDRESS_ETH);
     }
 
     /////////////////////////////////////////
@@ -121,7 +110,17 @@ contract BridgeFromTests is BridgeHelper {
     }
 
     function test_withdrawFrom() public {
-        bytes memory payload = abi.encode(address(0x01), 0);
+        address receiver = refundSender;
+        bytes1 funcSelector = 0x01;
+        bytes1 bridgeId = 0x02;
+        address vaultAddress = SGETH_ADDRESS;
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            receiver,
+            EPOCH_ID,
+            vaultAddress
+        );
 
         vm.startPrank(sender);
         zapFrom.withdraw{value: 0.1 ether}(payload);

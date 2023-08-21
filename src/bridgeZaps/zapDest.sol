@@ -202,7 +202,6 @@ contract ZapDest is
             keccak256(trustedRemoteLookup[_srcChainId])
         ) revert InvalidCaller();
 
-        // NOTE: !!!! Is the source contact address our address? If so then could just encode the sender with the data !!!!
         (
             bytes1 funcSelector,
             bytes1 bridgeId,

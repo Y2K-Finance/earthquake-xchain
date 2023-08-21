@@ -90,8 +90,6 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata payload
     ) external payable {
         _checkConditions(amountIn);
-        if (msg.value == 0) revert InvalidInput();
-        if (amountIn == 0) revert InvalidInput();
 
         if (fromToken != address(0)) {
             ERC20(fromToken).safeTransferFrom(
