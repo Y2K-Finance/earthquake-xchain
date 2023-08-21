@@ -2,12 +2,10 @@
 pragma solidity 0.8.18;
 
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {SwapHelper, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KChronosZap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KTraderJoeZap, Y2KCurveZap, Y2KGMXZap} from "../utils/SwapUtils.sol";
+import {SwapHelper, ERC20, IGMXVault, ICamelotPair, IUniswapPair, IBalancerVault, IEarthQuakeVault, IERC1155, Y2KCamelotZap, Y2KUniswapV2Zap, Y2KBalancerZap, Y2KUniswapV3Zap, Y2KCurveZap, Y2KGMXZap} from "../utils/SwapUtils.sol";
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
 import {IErrors} from "../../src/interfaces/IErrors.sol";
 import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
-
-import "forge-std/console.sol";
 
 contract ZapTests is SwapHelper {
     /////////////////////////////////////////
@@ -59,16 +57,6 @@ contract ZapTests is SwapHelper {
     function testStateVars_GMX() public {
         assertEq(address(zapGMX.gmxVault()), GMX_VAULT);
         assertEq(address(zapGMX.permit2()), PERMIT_2);
-    }
-
-    function testStateVars_TraderJoe() public {
-        assertEq(address(zapTraderJoe.legacyFactory()), TJ_LEGACY_FACTORY);
-        assertEq(address(zapTraderJoe.factory()), TJ_FACTORY);
-        assertEq(address(zapTraderJoe.factoryV1()), TJ_FACTORY_V1);
-    }
-
-    function testStateVars_Chronos() public {
-        assertEq(zapChronos.chronosFactory(), CHRONOS_FACTORY);
     }
 
     /////////////////////////////////////////
@@ -194,8 +182,6 @@ contract ZapTests is SwapHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new Y2KCurveZap(WETH_ADDRESS, address(0));
 
-        // TODO: Invalid output from swap to wrong type of pool (zapInSingle)
-
         // staging for zapInSingles (Standard and ETH)
         vm.startPrank(sender);
         (
@@ -270,8 +256,6 @@ contract ZapTests is SwapHelper {
         multiSwapInfo.path[2] = FRAX_ADDRESS;
         vm.expectRevert(IErrors.InvalidOutput.selector);
         zapCurveUSDT.zapInMulti(fromAmount, id, multiSwapInfo);
-
-        // TODO: Invalid output from swap to wrong type of pool (zapInMulti)
     }
 
     function testErrors_GMX() public {
@@ -312,26 +296,6 @@ contract ZapTests is SwapHelper {
             EARTHQUAKE_VAULT,
             sender
         );
-    }
-
-    function testErrors_TraderJoe() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(address(0), TJ_FACTORY, TJ_FACTORY_V1);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(TJ_LEGACY_FACTORY, address(0), TJ_FACTORY_V1);
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KTraderJoeZap(TJ_LEGACY_FACTORY, TJ_FACTORY, address(0));
-
-        // TODO: InvalidMinOut from (zapIn)
-        // TODO: InvalidPair from _getPair
-        // TODO: InvalidPair from _getLBPairInformation
-    }
-
-    function testErrors_Chronos() public {
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        new Y2KChronosZap(address(0));
     }
 
     /////////////////////////////////////////
