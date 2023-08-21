@@ -136,11 +136,11 @@ contract SwapHelper is Helper, PermitUtils {
     {
         y2kAmountIn = 5000e18;
         wethAmountIn = 5e17;
-        deal(Y2K_ADDRESS, senderAddress, 10_000_000);
+        deal(Y2K_ADDRESS, senderAddress, y2kAmountIn);
         assertEq(IERC20(Y2K_ADDRESS).balanceOf(senderAddress), y2kAmountIn);
         IERC20(Y2K_ADDRESS).approve(address(zapvlY2K), y2kAmountIn);
 
-        deal(WETH_ADDRESS, senderAddress, 10_000_000);
+        deal(WETH_ADDRESS, senderAddress, wethAmountIn);
         assertEq(IERC20(WETH_ADDRESS).balanceOf(senderAddress), wethAmountIn);
         IERC20(WETH_ADDRESS).approve(address(zapvlY2K), wethAmountIn);
 

@@ -336,63 +336,6 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
-    function test_withdrawAndBridgeWithHyphen() private {
-        // Deposits to the valut as the sender
-        _depositToVault(sender, EARTHQUAKE_VAULT);
-        bytes1 funcSelector = 0x02;
-        bytes1 bridgeId = 0x02;
-        uint16 srcChainId = 1;
-
-        // Withdraw from vault
-        vm.roll(block.timestamp);
-        vm.startPrank(sender);
-        zapDest.withdraw(
-            funcSelector,
-            bridgeId,
-            address(this),
-            EPOCH_ID,
-            srcChainId,
-            EARTHQUAKE_VAULT,
-            bytes("")
-        );
-
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
-        assertEq(
-            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
-            0
-        );
-    }
-
-    function test_withdrawAndBridgeWithHop() private {
-        // Deposits to the valut as the sender
-        _depositToVault(sender, EARTHQUAKE_VAULT);
-        bytes1 funcSelector = 0x02;
-        bytes1 bridgeId = 0x03;
-        uint16 srcChainId = 1;
-
-        // Withdraw from vault
-        vm.roll(block.timestamp);
-        vm.startPrank(sender);
-        zapDest.withdraw(
-            funcSelector,
-            bridgeId,
-            address(this),
-            EPOCH_ID,
-            srcChainId,
-            EARTHQUAKE_VAULT,
-            bytes("")
-        );
-
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
-        assertEq(
-            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
-            0
-        );
-    }
-
     /////////////////////////////////////////
     //       BRIDGE & SWAP FUNCTIONS       //
     /////////////////////////////////////////

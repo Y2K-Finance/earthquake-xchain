@@ -9,6 +9,8 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPermit2} from "../interfaces/IPermit2.sol";
 
+import "forge-std/console.sol";
+
 contract Y2KvlZap is IErrors, ISignatureTransfer {
     using SafeTransferLib for ERC20;
     IBalancerVault public immutable balancerVault;

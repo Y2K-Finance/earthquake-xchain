@@ -8,6 +8,8 @@ import {IErrors} from "../../src/interfaces/IErrors.sol";
 import {IPermit2 as Permit2} from "../../src/interfaces/IPermit2.sol";
 import {IvlY2K} from "../utils/Interfaces.sol";
 
+import "forge-std/console.sol";
+
 contract ZapTests is SwapHelper {
     /////////////////////////////////////////
     //               CONFIG                //
