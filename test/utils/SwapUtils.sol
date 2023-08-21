@@ -16,7 +16,6 @@ import {Y2KUniswapV3Zap} from "../../src//zaps/Y2KUniswapV3Zap.sol";
 import {Y2KTraderJoeZap} from "../../src//zaps/Y2KTraderJoeZap.sol";
 import {Y2KCurveZap} from "../../src//zaps/Y2KCurveZap.sol";
 import {Y2KGMXZap} from "../../src//zaps/Y2KGMXZap.sol";
-import {Y2KvlZap} from "../../src//zaps/Y2KvlZap.sol";
 
 import {IBalancerVault} from "../../src/interfaces/dexes/IBalancerVault.sol";
 import {IEarthQuakeVault, IERC1155} from "./Interfaces.sol";
@@ -41,7 +40,6 @@ contract SwapHelper is Helper, PermitUtils {
     Y2KCurveZap public zapCurveUSDT;
     Y2KGMXZap public zapGMX;
     Y2KTraderJoeZap public zapTraderJoe;
-    Y2KvlZap public zapvlY2K;
     IPermit2 public permit2;
 
     address constant depositReceiver = address(0x11);
@@ -63,12 +61,6 @@ contract SwapHelper is Helper, PermitUtils {
         zapCurve = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2);
         zapCurveUSDT = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2);
         zapGMX = new Y2KGMXZap(GMX_VAULT, PERMIT_2);
-        zapvlY2K = new Y2KvlZap(
-            BALANCER_VAULT,
-            PERMIT_2,
-            VL_Y2K,
-            BALANCER_Y2K_LP_TOKEN
-        );
 
         zapTraderJoe = new Y2KTraderJoeZap(
             TJ_LEGACY_FACTORY,
@@ -116,50 +108,6 @@ contract SwapHelper is Helper, PermitUtils {
         IERC20(USDT_ADDRESS).approve(spender, type(uint256).max);
         IERC20(WETH_ADDRESS).approve(spender, type(uint256).max);
         vm.stopPrank();
-    }
-
-    /////////////////////////////////////////
-    //        vl Deposit HELPER            //
-    /////////////////////////////////////////
-
-    function _setupvlY2K(
-        address senderAddress
-    )
-        internal
-        returns (
-            uint256 y2kBalance,
-            uint256 wethBalance,
-            uint256 y2kAmountIn,
-            uint256 wethAmountIn,
-            IBalancerVault.JoinPoolRequest memory request
-        )
-    {
-        y2kAmountIn = 5000e18;
-        wethAmountIn = 5e17;
-        deal(Y2K_ADDRESS, senderAddress, y2kAmountIn);
-        assertEq(IERC20(Y2K_ADDRESS).balanceOf(senderAddress), y2kAmountIn);
-        IERC20(Y2K_ADDRESS).approve(address(zapvlY2K), y2kAmountIn);
-
-        deal(WETH_ADDRESS, senderAddress, wethAmountIn);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(senderAddress), wethAmountIn);
-        IERC20(WETH_ADDRESS).approve(address(zapvlY2K), wethAmountIn);
-
-        address[] memory assets = new address[](2);
-        assets[0] = Y2K_ADDRESS;
-        assets[1] = WETH_ADDRESS;
-        uint256[] memory maxAmountsIn = new uint256[](2);
-        maxAmountsIn[0] = y2kAmountIn;
-        maxAmountsIn[1] = wethAmountIn;
-
-        request = IBalancerVault.JoinPoolRequest({
-            assets: assets,
-            maxAmountsIn: maxAmountsIn,
-            userData: "",
-            fromInternalBalance: false
-        });
-
-        y2kBalance = IERC20(Y2K_ADDRESS).balanceOf(senderAddress);
-        wethBalance = IERC20(WETH_ADDRESS).balanceOf(senderAddress);
     }
 
     /////////////////////////////////////////
