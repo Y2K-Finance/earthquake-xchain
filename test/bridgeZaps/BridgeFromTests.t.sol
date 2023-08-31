@@ -57,7 +57,7 @@ contract BridgeFromTests is BridgeHelper {
     function test_bridgeETH() public {
         uint256 amountIn = 1.01 ether;
         uint256 amount = 1 ether;
-        address fromToken = address(0);
+        address fromToken = ETH;
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
         bytes memory payload = abi.encode(sender, EPOCH_ID, EARTHQUAKE_VAULT);
@@ -329,7 +329,7 @@ contract BridgeFromTests is BridgeHelper {
     function test_swapCurveMulti() public {
         uint256 amountIn = 100e6;
         address fromToken = USDC_ADDRESS_ETH;
-        address receivedToken = address(0);
+        address receivedToken = ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 1;
         (
@@ -833,7 +833,7 @@ contract BridgeFromTests is BridgeHelper {
     function test_swapEthCurveMulti() public {
         uint256 amountIn = 100e6;
         address fromToken = USDC_ADDRESS_ETH;
-        address receivedToken = address(0);
+        address receivedToken = ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 1;
         (
@@ -1231,6 +1231,20 @@ contract BridgeFromTests is BridgeHelper {
             swapPayload,
             bridgePayload
         );
+
+        transferDetails.requestedAmount = 1;
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        zapFrom.permitSwapAndBridge{value: amountIn}(
+            address(0),
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            permit,
+            transferDetails,
+            sig,
+            swapPayload,
+            bridgePayload
+        );
     }
 
     function testErrors_swapBridgeInvalidInputs() public {
@@ -1261,6 +1275,18 @@ contract BridgeFromTests is BridgeHelper {
             zeroAmountIn,
             fromToken,
             receivedToken,
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            swapPayload,
+            bridgePayload
+        );
+
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        zapFrom.swapAndBridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            address(0),
             srcPoolId,
             dstPoolId,
             dexId,

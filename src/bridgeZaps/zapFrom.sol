@@ -99,6 +99,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
 
     /** @notice User invokes this function to swap with Permit, bridge, and deposit to Y2K vaults using Stargate
         @dev The swap routing logic for each dex is executed on SwapController using the dexId and decoded payload
+         @dev Curve uses ETH address for receiving ETH and bypasses override on line 193
         @param receivedToken The token being received in the swap
         @param srcPoolId The poolId for the fromChain for Stargate
         @param dstPoolId The poolId for the toChain for Stargate
@@ -121,6 +122,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata bridgePayload
     ) external payable {
         _checkConditions(transferDetails.requestedAmount);
+        if (receivedToken == address(0)) revert InvalidInput();
 
         permit2.permitTransferFrom(permit, transferDetails, msg.sender, sig);
         uint256 receivedAmount;
@@ -140,7 +142,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
 
         if (receivedToken == wethAddress) {
             WETH(wethAddress).withdraw(receivedAmount);
-            receivedToken = address(0);
+            receivedToken = ETH;
         }
         _bridge(
             receivedAmount,
@@ -153,6 +155,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
 
     /** @notice User invokes this function to swap, bridge and deposit to Y2K vaults using Stargate
         @dev The swap routing logic for each dex is executed on SwapController using the dexId and decoded payload
+        @dev Curve uses ETH address for receiving ETH and bypasses override on line 193
         @param amountIn The qty of local _token contract tokens
         @param fromToken The fromChain token address
         @param srcPoolId The poolId for the fromChain for Stargate
@@ -172,6 +175,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata bridgePayload
     ) external payable {
         _checkConditions(amountIn);
+        if (receivedToken == address(0)) revert InvalidInput();
 
         ERC20(fromToken).safeTransferFrom(msg.sender, address(this), amountIn);
 
@@ -185,7 +189,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
 
         if (receivedToken == wethAddress) {
             WETH(wethAddress).withdraw(receivedAmount);
-            receivedToken = address(0);
+            receivedToken = ETH;
         }
 
         _bridge(
@@ -258,7 +262,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         uint16 dstPoolId,
         bytes calldata payload
     ) private {
-        if (fromToken == address(0)) {
+        if (fromToken == ETH) {
             /*  NOTE: If sending after swap to ETH then msg.value will be < amountIn as it only contains the fee
                 If sending without swap msg.value will be > amountIn as it contains both fee + amountIn
             **/
