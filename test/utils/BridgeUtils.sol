@@ -15,7 +15,7 @@ import {IPermit2} from "./IPermit2.sol";
 contract BridgeHelper is Helper, PermitUtils {
     address stargateRelayer;
     address stargateRelayerEth;
-    address layerZeroRelayer;
+    address layerZeroEndpoint;
 
     ZapDest public zapDest;
     ZapFrom public zapFrom;
@@ -57,12 +57,12 @@ contract BridgeHelper is Helper, PermitUtils {
 
         stargateRelayer = sender;
         stargateRelayerEth = secondSender;
-        layerZeroRelayer = thirdSender;
+        layerZeroEndpoint = thirdSender;
 
         zapDest = new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
