@@ -861,8 +861,33 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
+    function testErrors_lzReceiveInvalidLength() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress = abi.encode(sender);
+        uint64 nonce = 0;
+        bytes memory payload = "";
+
+        vm.startPrank(layerZeroEndpoint);
+        vm.expectRevert(IErrors.InvalidLength.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_lzReceiveRemoteNotSet() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress;
+        uint64 nonce = 0;
+        bytes memory payload = "";
+
+        vm.startPrank(layerZeroEndpoint);
+        vm.expectRevert(IErrors.RemoteNotSet.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
     function testErrors_lzReceiveInvalidCallerMapping() public {
         uint16 srcChainId = 1;
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
         bytes memory srcAddress = abi.encode(sender);
         uint64 nonce = 0;
         bytes memory payload = "";

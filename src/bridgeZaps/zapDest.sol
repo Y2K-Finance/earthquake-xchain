@@ -197,10 +197,12 @@ contract ZapDest is
         bytes memory _payload
     ) external override {
         if (msg.sender != layerZeroEndpoint) revert InvalidCaller();
-        if (
-            keccak256(_srcAddress) !=
-            keccak256(trustedRemoteLookup[_srcChainId])
-        ) revert InvalidCaller();
+
+        bytes memory trustedRemote = trustedRemoteLookup[_srcChainId];
+        if (trustedRemote.length != _srcAddress.length) revert InvalidLength();
+        if (trustedRemote.length == 0) revert RemoteNotSet();
+        if (keccak256(_srcAddress) != keccak256(trustedRemote))
+            revert InvalidCaller();
 
         (
             bytes1 funcSelector,
