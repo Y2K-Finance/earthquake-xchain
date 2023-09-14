@@ -50,6 +50,7 @@ abstract contract VaultController is IErrors {
             try
                 IEarthquake(vaultAddress).deposit(id, amount, address(this))
             {} catch {
+                ERC20(inputToken).safeApprove(address(vaultAddress), 0);
                 return false;
             }
         }
