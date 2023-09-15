@@ -60,7 +60,6 @@ contract BridgeFromTests is BridgeHelper {
         address fromToken = ETH;
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
-        bytes memory payload = abi.encode(sender, EPOCH_ID, EARTHQUAKE_VAULT);
         uint256 balance = sender.balance;
 
         vm.startPrank(sender);
@@ -69,7 +68,9 @@ contract BridgeFromTests is BridgeHelper {
             fromToken,
             srcPoolId,
             dstPoolId,
-            payload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
         );
 
         assertLe(sender.balance, balance);
@@ -81,7 +82,6 @@ contract BridgeFromTests is BridgeHelper {
         address fromToken = USDC_ADDRESS_ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 1;
-        bytes memory payload = abi.encode(sender, EPOCH_ID, EARTHQUAKE_VAULT);
 
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
@@ -95,7 +95,9 @@ contract BridgeFromTests is BridgeHelper {
             fromToken,
             srcPoolId,
             dstPoolId,
-            payload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -136,11 +138,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -154,8 +151,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -175,11 +174,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -193,8 +187,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -216,11 +212,6 @@ contract BridgeFromTests is BridgeHelper {
         fee[0] = 500;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -234,8 +225,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -263,11 +256,6 @@ contract BridgeFromTests is BridgeHelper {
             amountIn,
             toAmountMin
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(DAI_ADDRESS_ETH, sender, amountIn);
@@ -281,8 +269,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x04, // Curve dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(DAI_ADDRESS_ETH).balanceOf(sender), 0);
@@ -293,7 +283,7 @@ contract BridgeFromTests is BridgeHelper {
         uint256 amountIn,
         address fromToken,
         address receivedToken
-    ) internal pure returns (bytes memory, bytes memory) {
+    ) internal pure returns (bytes memory) {
         uint256 toAmountMin = 1e16;
 
         address[] memory path = new address[](3);
@@ -311,7 +301,7 @@ contract BridgeFromTests is BridgeHelper {
         jValues[0] = 2;
         iValues[1] = 0;
         jValues[1] = 2;
-        return (
+        return
             abi.encode(
                 bytes1(0x03), // swapType 3 on Curve
                 path,
@@ -320,9 +310,7 @@ contract BridgeFromTests is BridgeHelper {
                 jValues,
                 amountIn,
                 toAmountMin
-            ),
-            abi.encode(sender, EPOCH_ID, EARTHQUAKE_VAULT)
-        );
+            );
     }
 
     // TODO: Swapping ETH and need this to swap to ERC20
@@ -332,10 +320,11 @@ contract BridgeFromTests is BridgeHelper {
         address receivedToken = ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 1;
-        (
-            bytes memory swapPayload,
-            bytes memory bridgePayload
-        ) = _setupCurveMultiBridge(amountIn, fromToken, receivedToken);
+        bytes memory swapPayload = _setupCurveMultiBridge(
+            amountIn,
+            fromToken,
+            receivedToken
+        );
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), amountIn);
@@ -348,8 +337,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x04, // Curve dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -388,11 +379,6 @@ contract BridgeFromTests is BridgeHelper {
             toAmountMin,
             deadline
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(DAI_ADDRESS_ETH, sender, amountIn);
@@ -406,8 +392,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x05, // Balancer dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(DAI_ADDRESS_ETH).balanceOf(sender), 0);
@@ -502,11 +490,6 @@ contract BridgeFromTests is BridgeHelper {
             block.timestamp + 1000,
             assetIndexes
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -520,8 +503,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x05, // Balancer dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -544,11 +529,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            permitSender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(permitSender);
         vm.deal(permitSender, 1e18);
@@ -565,17 +545,20 @@ contract BridgeFromTests is BridgeHelper {
                 fromToken
             );
 
-        zapFrom.permitSwapAndBridge{value: 0.1 ether}(
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            permit,
-            transferDetails,
-            sig,
-            swapPayload,
-            bridgePayload
-        );
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: receivedToken,
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: dexId,
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
+        zapFrom.permitSwapAndBridge{value: 0.1 ether}(permitInput);
 
         assertEq(IERC20(fromToken).balanceOf(permitSender), 0);
         vm.stopPrank();
@@ -594,11 +577,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -612,8 +590,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -635,11 +615,6 @@ contract BridgeFromTests is BridgeHelper {
         fee[0] = 500;
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WETH_ADDRESS_ETH, sender, amountIn);
@@ -653,8 +628,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
@@ -677,11 +654,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1e16;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
@@ -695,8 +667,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -716,11 +690,6 @@ contract BridgeFromTests is BridgeHelper {
         path[1] = receivedToken;
         uint256 toAmountMin = 1e16;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
@@ -734,8 +703,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -757,11 +728,6 @@ contract BridgeFromTests is BridgeHelper {
         fee[0] = 500;
         uint256 toAmountMin = 1e16;
         bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
@@ -775,8 +741,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -804,11 +772,6 @@ contract BridgeFromTests is BridgeHelper {
             amountIn,
             toAmountMin
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(WBTC_ADDRESS_ETH, sender, amountIn);
@@ -822,8 +785,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x04, // Curve dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(WBTC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -836,10 +801,12 @@ contract BridgeFromTests is BridgeHelper {
         address receivedToken = ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 1;
-        (
-            bytes memory swapPayload,
-            bytes memory bridgePayload
-        ) = _setupCurveMultiBridge(amountIn, fromToken, receivedToken);
+
+        bytes memory swapPayload = _setupCurveMultiBridge(
+            amountIn,
+            fromToken,
+            receivedToken
+        );
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), amountIn);
@@ -852,8 +819,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x04, // Curve dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -892,11 +861,6 @@ contract BridgeFromTests is BridgeHelper {
             toAmountMin,
             deadline
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(DAI_ADDRESS_ETH, sender, amountIn);
@@ -910,8 +874,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x05, // Balancer dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(DAI_ADDRESS_ETH).balanceOf(sender), 0);
@@ -947,11 +913,6 @@ contract BridgeFromTests is BridgeHelper {
             block.timestamp + 1000,
             assetIndexes
         );
-        bytes memory bridgePayload = abi.encode(
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT
-        );
 
         vm.startPrank(sender);
         deal(USDC_ADDRESS_ETH, sender, amountIn);
@@ -965,8 +926,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             0x05, // Balancer dexId
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
@@ -1170,10 +1133,17 @@ contract BridgeFromTests is BridgeHelper {
         address fromToken = USDC_ADDRESS_ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 2;
-        bytes memory payload = abi.encode(address(0), 0, 0);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.bridge(amountIn, fromToken, srcPoolId, dstPoolId, payload);
+        zapFrom.bridge(
+            amountIn,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
+        );
 
         uint256 zeroAmountIn = 0;
         vm.expectRevert(IErrors.InvalidInput.selector);
@@ -1182,13 +1152,47 @@ contract BridgeFromTests is BridgeHelper {
             fromToken,
             srcPoolId,
             dstPoolId,
-            payload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
+        );
+
+        vm.expectRevert(IErrors.InvalidReceiver.selector);
+        zapFrom.bridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            address(0),
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
+        );
+
+        vm.expectRevert(IErrors.InvalidEpochId.selector);
+        zapFrom.bridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            sender,
+            0,
+            EARTHQUAKE_VAULT
+        );
+
+        vm.expectRevert(IErrors.InvalidVault.selector);
+        zapFrom.bridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            sender,
+            EPOCH_ID,
+            address(0)
         );
     }
 
     function testErrors_permitSwapBridgeInvalidInputs() public {
         uint256 amountIn = 1;
-        address receivedToken = USDT_ADDRESS_ETH;
         uint16 srcPoolId = 1;
         uint16 dstPoolId = 2;
         bytes1 dexId = 0x01;
@@ -1204,47 +1208,45 @@ contract BridgeFromTests is BridgeHelper {
                 .SignatureTransferDetails(address(0), 0);
         bytes memory sig = abi.encode(bytes(""));
         bytes memory swapPayload = abi.encode(bytes(""));
-        bytes memory bridgePayload = abi.encode(address(0), 0, 0);
+
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: address(0),
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: dexId,
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.permitSwapAndBridge(
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            permit,
-            transferDetails,
-            sig,
-            swapPayload,
-            bridgePayload
-        );
+        zapFrom.permitSwapAndBridge(permitInput);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.permitSwapAndBridge{value: amountIn}(
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            permit,
-            transferDetails,
-            sig,
-            swapPayload,
-            bridgePayload
-        );
+        zapFrom.permitSwapAndBridge{value: amountIn}(permitInput);
+        permitInput.transferDetails.requestedAmount = 1;
 
-        transferDetails.requestedAmount = 1;
+        permitInput.receiver = address(0);
+        vm.expectRevert(IErrors.InvalidReceiver.selector);
+        zapFrom.permitSwapAndBridge{value: amountIn}(permitInput);
+
+        permitInput.receiver = permitSender;
+        permitInput.epochId = 0;
+        vm.expectRevert(IErrors.InvalidEpochId.selector);
+        zapFrom.permitSwapAndBridge{value: amountIn}(permitInput);
+
+        permitInput.epochId = EPOCH_ID;
+        permitInput.vaultAddress = address(0);
+        vm.expectRevert(IErrors.InvalidVault.selector);
+        zapFrom.permitSwapAndBridge{value: amountIn}(permitInput);
+
+        permitInput.vaultAddress = EARTHQUAKE_VAULT;
         vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom.permitSwapAndBridge{value: amountIn}(
-            address(0),
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            permit,
-            transferDetails,
-            sig,
-            swapPayload,
-            bridgePayload
-        );
+        zapFrom.permitSwapAndBridge{value: amountIn}(permitInput);
     }
 
     function testErrors_swapBridgeInvalidInputs() public {
@@ -1255,7 +1257,6 @@ contract BridgeFromTests is BridgeHelper {
         uint16 dstPoolId = 2;
         bytes1 dexId = 0x01;
         bytes memory swapPayload = abi.encode(bytes(""));
-        bytes memory bridgePayload = abi.encode(address(0), 0, 0);
 
         vm.expectRevert(IErrors.InvalidInput.selector);
         zapFrom.swapAndBridge(
@@ -1265,8 +1266,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
         uint256 zeroAmountIn = 0;
@@ -1278,10 +1281,55 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
 
+        vm.expectRevert(IErrors.InvalidReceiver.selector);
+        zapFrom.swapAndBridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            address(0),
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
+        );
+
+        vm.expectRevert(IErrors.InvalidEpochId.selector);
+        zapFrom.swapAndBridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            sender,
+            0,
+            EARTHQUAKE_VAULT,
+            swapPayload
+        );
+
+        vm.expectRevert(IErrors.InvalidVault.selector);
+        zapFrom.swapAndBridge{value: amountIn}(
+            amountIn,
+            fromToken,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            sender,
+            EPOCH_ID,
+            address(0),
+            swapPayload
+        );
+
+        // Reverting on receivedToken being address(0)
         vm.expectRevert(IErrors.InvalidInput.selector);
         zapFrom.swapAndBridge{value: amountIn}(
             amountIn,
@@ -1290,8 +1338,10 @@ contract BridgeFromTests is BridgeHelper {
             srcPoolId,
             dstPoolId,
             dexId,
-            swapPayload,
-            bridgePayload
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
         );
     }
 }

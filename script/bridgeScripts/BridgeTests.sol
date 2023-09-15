@@ -67,19 +67,15 @@ contract BridgeTestScript is Script, Helper {
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
         uint256 depositType = fromToken == address(0) ? 1 : 2;
-        bytes memory payload = abi.encode(
-            receiver,
-            epochIdV2,
-            vaultAddress,
-            depositType
-        );
 
         zapFrom.bridge{value: amountIn}(
             amount,
             fromToken,
             srcPoolId,
             dstPoolId,
-            payload
+            receiver,
+            epochIdV2,
+            vaultAddress
         );
     }
 
@@ -91,20 +87,15 @@ contract BridgeTestScript is Script, Helper {
         address fromToken = address(0);
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
-        uint256 depositType = fromToken == address(0) ? 1 : 2;
-        bytes memory payload = abi.encode(
-            receiver,
-            epochIdV2,
-            vaultAddress,
-            depositType
-        );
 
         zapFrom.bridge{value: amountIn}(
             amount,
             fromToken,
             srcPoolId,
             dstPoolId,
-            payload
+            receiver,
+            epochIdV2,
+            vaultAddress
         );
     }
 

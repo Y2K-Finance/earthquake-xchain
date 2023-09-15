@@ -17,5 +17,6 @@ interface IErrors {
     error NullBalance();
     error IneligibleRefund();
     error InvalidLength();
+    error InvalidReceiver();
     error RemoteNotSet();
 }
