@@ -53,9 +53,6 @@ contract UniswapV2Swapper is IErrors {
         address[] memory path,
         uint256 toAmountMin
     ) internal returns (uint256 amountOut) {
-        uint256[] memory amounts = new uint256[](path.length - 1);
-        address[] memory pairs = new address[](path.length - 1);
-
         bytes memory initCodeHash;
         address factory;
         if (dexId == 0x01) {
@@ -67,43 +64,28 @@ contract UniswapV2Swapper is IErrors {
         }
 
         amountOut = fromAmount;
-        for (uint256 i = 0; i < path.length - 1; ) {
-            {
-                address fromToken = path[i];
-                address toToken = path[i + 1];
+        address fromToken = path[0];
+        address toToken = path[1];
 
-                pairs[i] = _getPair(fromToken, toToken, initCodeHash, factory);
-                (uint256 reserveA, uint256 reserveB, ) = IUniswapPair(pairs[i])
-                    .getReserves();
+        address pair = _getPair(fromToken, toToken, initCodeHash, factory);
+        (uint256 reserveA, uint256 reserveB, ) = IUniswapPair(pair)
+            .getReserves();
+        if (fromToken > toToken) (reserveA, reserveB) = (reserveB, reserveA);
 
-                if (fromToken > toToken)
-                    (reserveA, reserveB) = (reserveB, reserveA);
+        amountOut =
+            ((amountOut * 997) * reserveB) /
+            ((reserveA * 1000) + (amountOut * 997));
+        if (amountOut < toAmountMin) revert InvalidMinOut(amountOut);
 
-                amounts[i] =
-                    ((amountOut * 997) * reserveB) /
-                    ((reserveA * 1000) + (amountOut * 997));
-                amountOut = amounts[i];
-            }
-
-            unchecked {
-                i++;
-            }
-        }
-
-        if (amounts[amounts.length - 1] < toAmountMin)
-            revert InvalidMinOut(amounts[amounts.length - 1]);
-
-        SafeTransferLib.safeTransfer(ERC20(path[0]), pairs[0], fromAmount);
+        SafeTransferLib.safeTransfer(ERC20(path[0]), pair, fromAmount);
 
         bool zeroForOne = path[0] < path[1];
-        IUniswapPair(pairs[0]).swap(
-            zeroForOne ? 0 : amounts[0],
-            zeroForOne ? amounts[0] : 0,
+        IUniswapPair(pair).swap(
+            zeroForOne ? 0 : amountOut,
+            zeroForOne ? amountOut : 0,
             address(this),
             ""
         );
-
-        return amounts[0];
     }
 
     /** @notice Simulates the address for the pair of two tokens
