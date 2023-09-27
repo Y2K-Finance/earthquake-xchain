@@ -30,10 +30,6 @@ contract BridgeFromTests is BridgeHelper {
         assertTrue(supply != 0);
 
         assertEq(IStargateRouter(STARGATE_ROUTER).factory(), stargateFactory);
-        assertEq(
-            IStargateRouter(STARGATE_ROUTER_USINGETH).poolId(),
-            ethRouterPoolId
-        );
     }
 
     /////////////////////////////////////////
@@ -42,7 +38,6 @@ contract BridgeFromTests is BridgeHelper {
     function test_stateVarsFrom() public {
         assertEq(address(zapFrom.permit2()), PERMIT_2);
         assertEq(zapFrom.stargateRouter(), STARGATE_ROUTER);
-        assertEq(zapFrom.stargateRouterEth(), STARGATE_ROUTER_USINGETH);
         assertEq(zapFrom.layerZeroRouter(), LAYER_ZERO_ROUTER_LOCAL);
         assertEq(zapFrom.y2kArbRouter(), y2kArbRouter);
         assertEq(
@@ -986,7 +981,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 address(0),
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1005,7 +999,6 @@ contract BridgeFromTests is BridgeHelper {
             ZapFrom.Config(
                 STARGATE_ROUTER,
                 address(0),
-                LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
                 SUSHI_V2_FACTORY_ETH,
@@ -1022,25 +1015,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
-                address(0),
-                y2kArbRouter,
-                UNISWAP_V2_FACTORY,
-                SUSHI_V2_FACTORY_ETH,
-                UNISWAP_V3_FACTORY,
-                BALANCER_VAULT,
-                WETH_ADDRESS_ETH,
-                PERMIT_2,
-                PRIMARY_INIT_HASH_ETH,
-                SECONDARY_INIT_HASH_ETH
-            )
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom = new ZapFrom(
-            ZapFrom.Config(
-                STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 address(0),
                 UNISWAP_V2_FACTORY,
@@ -1058,7 +1032,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 address(0),
@@ -1076,7 +1049,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1094,7 +1066,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1112,7 +1083,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1130,7 +1100,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1148,7 +1117,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1166,7 +1134,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1184,7 +1151,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,

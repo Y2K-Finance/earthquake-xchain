@@ -67,7 +67,6 @@ contract DeployLzScript is Script, Helper {
 
     function _deployToOptimism() internal {
         address stargateRouterOptimism = 0xB0D502E938ed5f4df2E681fE6E419ff29631d62b;
-        address stargateRouterOptimismEth = 0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
         // NOTE: LZ chainId is 111 for Optimism
         address layerZeroRouterOptimism = 0x3c2269811836af69497E5F486A85D7316753cf62;
         address uniswapV2ForkFactoryOptimism = 0x7eeaE829DF28f9ce522274d577970dC9FF3e64B2;
@@ -78,7 +77,6 @@ contract DeployLzScript is Script, Helper {
         ZapFrom zapFrom = new ZapFrom(
             ZapFrom.Config(
                 stargateRouterOptimism,
-                stargateRouterOptimismEth,
                 layerZeroRouterOptimism,
                 y2kArbRouter,
                 uniswapV2ForkFactoryOptimism,
@@ -98,7 +96,6 @@ contract DeployLzScript is Script, Helper {
         ZapFrom zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,

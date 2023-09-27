@@ -128,9 +128,7 @@ abstract contract Helper is Test {
     address constant WBTC_ADDRESS_ETH =
         0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address constant STARGATE_ROUTER =
-        0x8731d54E9D02c286767d56ac03e8037C07e01e98;
-    address constant STARGATE_ROUTER_USINGETH =
-        0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
+        0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9;
     address constant LAYER_ZERO_ROUTER_LOCAL =
         0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675;
     address constant LAYER_ZERO_ROUTER_REMOTE =

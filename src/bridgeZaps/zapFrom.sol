@@ -19,14 +19,12 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     uint16 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: Id used by Stargate/LayerZero for Arbitrum
     IPermit2 public immutable permit2;
     address public immutable stargateRouter;
-    address public immutable stargateRouterEth;
     address public immutable layerZeroRouter;
     address public immutable y2kArbRouter;
     bytes public layerZeroRemoteAndLocal;
 
     struct Config {
         address _stargateRouter;
-        address _stargateRouterEth;
         address _layerZeroRouterLocal;
         address _y2kArbRouter;
         address _uniswapV2Factory;
@@ -57,12 +55,10 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         )
     {
         if (_config._stargateRouter == address(0)) revert InvalidInput();
-        if (_config._stargateRouterEth == address(0)) revert InvalidInput();
         if (_config._layerZeroRouterLocal == address(0)) revert InvalidInput();
         if (_config._y2kArbRouter == address(0)) revert InvalidInput();
         if (_config._permit2 == address(0)) revert InvalidInput();
         stargateRouter = _config._stargateRouter;
-        stargateRouterEth = _config._stargateRouterEth;
         layerZeroRouter = _config._layerZeroRouterLocal;
         layerZeroRemoteAndLocal = abi.encodePacked(
             _config._y2kArbRouter,
@@ -269,7 +265,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
             uint256 msgValue = msg.value > amountIn
                 ? msg.value
                 : amountIn + msg.value;
-            IStargateRouter(stargateRouterEth).swapETHAndCall{value: msgValue}(
+            IStargateRouter(stargateRouter).swapETHAndCall{value: msgValue}(
                 uint16(ARBITRUM_CHAIN_ID), // destination Stargate chainId
                 payable(msg.sender), // refund additional messageFee to this address
                 abi.encodePacked(y2kArbRouter), // the receiver of the destination ETH

@@ -92,7 +92,6 @@ contract BridgeHelper is Helper, PermitUtils {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -115,7 +114,6 @@ contract BridgeHelper is Helper, PermitUtils {
         vm.label(WETH_ADDRESS_ETH, "WETH");
         vm.label(address(zapFrom), "ZapFrom");
         vm.label(STARGATE_ROUTER, "STG ERC20");
-        vm.label(STARGATE_ROUTER_USINGETH, "STG ETH");
 
         permit2 = IPermit2(PERMIT_2);
         permitSender = vm.addr(permitSenderKey);
