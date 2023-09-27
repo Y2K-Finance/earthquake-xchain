@@ -250,7 +250,7 @@ contract BridgeHelper is Helper, PermitUtils {
         nonce = 0;
         bytes1 funcSelector = 0x03;
         // NOTE: Using 1 eth deposit as standard
-        uint256 toAmountMin = (1700e6 * 99) / 100;
+        uint256 toAmountMin = (1000e6 * 99) / 100;
 
         if (bridgeId == 0x01) {
             uint256 celerSlippage = 10e6;
