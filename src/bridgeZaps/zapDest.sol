@@ -53,6 +53,7 @@ contract ZapDest is
         address sender
     );
     event VaultWhitelisted(address vault, address sender);
+    event StargateRelayerUpdated(address stargateRelayer);
 
     /** @notice constructor
         @dev Calls constructors for BridgeController, UniswapV2Swapper, and UniswapV3Swapper
@@ -138,6 +139,17 @@ contract ZapDest is
         if (_vaultAddress == address(0)) revert InvalidInput();
         whitelistedVault[_vaultAddress] = 1;
         emit VaultWhitelisted(_vaultAddress, msg.sender);
+    }
+
+    /** @notice Admin function to manage the Stargate relayer address
+        @param _stargateRelayer The address of the Stargate relayer on Arbitrum
+    **/
+    function updateStargateRelayer(
+        address _stargateRelayer
+    ) external payable onlyOwner {
+        if (_stargateRelayer == address(0)) revert InvalidInput();
+        stargateRelayer = _stargateRelayer;
+        emit StargateRelayerUpdated(_stargateRelayer);
     }
 
     //////////////////////////////////////////////

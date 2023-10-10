@@ -80,6 +80,15 @@ contract BridgeDestTests is BridgeHelper {
         assertEq(zapDest.whitelistedVault(EARTHQUAKE_VAULT_USDT), 1);
     }
 
+    function test_updateStargateRelayer() public {
+        address newRelayer = address(0x01);
+        vm.expectEmit(true, true, true, true);
+        emit StargateRelayerUpdated(newRelayer);
+        zapDest.updateStargateRelayer(newRelayer);
+
+        assertEq(zapDest.stargateRelayer(), newRelayer);
+    }
+
     /////////////////////////////////////////
     //        VAULT PUBLIC FUNCTIONS        //
     /////////////////////////////////////////
@@ -762,6 +771,11 @@ contract BridgeDestTests is BridgeHelper {
 
         vm.expectRevert(IErrors.InvalidInput.selector);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+    }
+
+    function testErrors_updateStargateRelayer() public {
+        vm.expectRevert(IErrors.InvalidInput.selector);
+        zapDest.updateStargateRelayer(address(0));
     }
 
     function testErrors_setTokenHop() public {
