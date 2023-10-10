@@ -26,9 +26,8 @@ contract ZapDest is
     ILayerZeroReceiver
 {
     using BytesLib for bytes;
-    address public immutable stargateRelayer;
-    address public immutable stargateRelayerEth;
     address public immutable layerZeroEndpoint;
+    address public stargateRelayer;
 
     mapping(address => uint256) public addrCounter;
     mapping(uint16 => bytes) public trustedRemoteLookup;
@@ -58,7 +57,6 @@ contract ZapDest is
     /** @notice constructor
         @dev Calls constructors for BridgeController, UniswapV2Swapper, and UniswapV3Swapper
         @param _stargateRelayer The address of the Stargate relayer on Arbitrum
-        @param _stargateRelayerEth The address of the Stargate ETH relayer on Ethereum
         @param _layerZeroEndpoint The address of the LayerZero relayer on Arbitrum
         @param _celerBridge The address of the Celer bridge on Arbitrum
         @param _hyphenBridge The address of the Hyphen bridge on Arbitrum
@@ -71,7 +69,6 @@ contract ZapDest is
      **/
     constructor(
         address _stargateRelayer,
-        address _stargateRelayerEth,
         address _layerZeroEndpoint,
         address _celerBridge,
         address _hyphenBridge,
@@ -94,10 +91,8 @@ contract ZapDest is
         UniswapV3Swapper(_uniswapV3Factory)
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
-        if (_stargateRelayerEth == address(0)) revert InvalidInput();
         if (_layerZeroEndpoint == address(0)) revert InvalidInput();
         stargateRelayer = _stargateRelayer;
-        stargateRelayerEth = _stargateRelayerEth;
         layerZeroEndpoint = _layerZeroEndpoint;
     }
 
@@ -164,8 +159,7 @@ contract ZapDest is
         uint256 amountLD,
         bytes calldata _payload
     ) external payable override {
-        if (msg.sender != stargateRelayer && msg.sender != stargateRelayerEth)
-            revert InvalidCaller();
+        if (msg.sender != stargateRelayer) revert InvalidCaller();
         (address receiver, uint256 id, address vaultAddress) = abi.decode(
             _payload,
             (address, uint256, address)

@@ -14,7 +14,6 @@ import {IPermit2} from "./IPermit2.sol";
 
 contract BridgeHelper is Helper, PermitUtils {
     address stargateRelayer;
-    address stargateRelayerEth;
     address layerZeroEndpoint;
 
     ZapDest public zapDest;
@@ -56,12 +55,10 @@ contract BridgeHelper is Helper, PermitUtils {
         vm.warp(EPOCH_BEGIN - 1);
 
         stargateRelayer = sender;
-        stargateRelayerEth = secondSender;
         layerZeroEndpoint = thirdSender;
 
         zapDest = new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,

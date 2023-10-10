@@ -136,7 +136,7 @@ contract BridgeDestTests is BridgeHelper {
             bytes memory payload,
             uint256 chainId
         ) = setupSgReceiveDeposit(
-                stargateRelayerEth,
+                stargateRelayer,
                 sender,
                 token,
                 EPOCH_ID,
@@ -146,11 +146,11 @@ contract BridgeDestTests is BridgeHelper {
         uint256 amount = 1e17;
         token = address(0);
 
-        vm.startPrank(stargateRelayerEth);
+        vm.startPrank(stargateRelayer);
         vm.expectEmit(true, true, true, false);
 
-        vm.deal(stargateRelayerEth, amount);
-        assertGe(stargateRelayerEth.balance, amount);
+        vm.deal(stargateRelayer, amount);
+        assertGe(stargateRelayer.balance, amount);
 
         emit ReceivedDeposit(token, address(zapDest), amount);
         zapDest.sgReceive{value: amount}(
@@ -618,7 +618,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             address(0),
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -633,7 +632,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             address(0),
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -648,7 +646,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             address(0),
             HYPHEN_BRIDGE,
@@ -663,7 +660,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             address(0),
@@ -678,7 +674,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -693,7 +688,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -708,7 +702,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -723,7 +716,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -738,7 +730,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
@@ -753,7 +744,6 @@ contract BridgeDestTests is BridgeHelper {
         vm.expectRevert(IErrors.InvalidInput.selector);
         new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,

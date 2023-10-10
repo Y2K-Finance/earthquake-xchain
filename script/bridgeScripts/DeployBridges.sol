@@ -14,9 +14,7 @@ import "../../src/bridgeZaps/mock/mockVault.sol";
 contract DeployLzScript is Script, Helper {
     uint256 network;
     bool deployMockVault;
-    address public stargateRelayer = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
-    address public stargateRelayerEth =
-        0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
+    address public stargateRelayer = 0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9;
 
     function setUp() public {
         network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism, 999: null network to deploy vault
@@ -51,7 +49,6 @@ contract DeployLzScript is Script, Helper {
     function _deployToArbitrum() internal {
         ZapDest zapDest = new ZapDest(
             stargateRelayer,
-            stargateRelayerEth,
             LAYER_ZERO_ROUTER_REMOTE,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
