@@ -33,7 +33,7 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     function test_stateVarsDest() public {
         assertEq(zapDest.stargateRelayer(), stargateRelayer);
-        assertEq(zapDest.layerZeroRelayer(), layerZeroRelayer);
+        assertEq(zapDest.layerZeroEndpoint(), layerZeroEndpoint);
         assertEq(address(zapDest.celerBridge()), CELER_BRIDGE);
         assertEq(address(zapDest.hyphenBridge()), HYPHEN_BRIDGE);
         assertEq(zapDest.uniswapV2ForkFactory(), CAMELOT_FACTORY);
@@ -46,7 +46,7 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     function test_setTrustedRemoteLookup() public {
         uint16 srcChainId = 1;
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
 
         vm.expectEmit(true, true, true, false);
         emit TrustedRemoteAdded(srcChainId, trustedAddress, address(this));
@@ -183,7 +183,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -199,12 +199,12 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupLzReceiveWithdraw(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT
             );
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -336,63 +336,6 @@ contract BridgeDestTests is BridgeHelper {
         );
     }
 
-    // TODO: Need to test w/ USDC or equivalent as underlying due to bridge restrictions
-    function test_withdrawAndBridgeWithHyphen() private {
-        // Deposits to the valut as the sender
-        _depositToVault(sender, EARTHQUAKE_VAULT);
-        bytes1 funcSelector = 0x02;
-        bytes1 bridgeId = 0x02;
-        uint16 srcChainId = 1;
-
-        // Withdraw from vault
-        vm.roll(block.timestamp);
-        vm.startPrank(sender);
-        zapDest.withdraw(
-            funcSelector,
-            bridgeId,
-            address(this),
-            EPOCH_ID,
-            srcChainId,
-            EARTHQUAKE_VAULT,
-            bytes("")
-        );
-
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
-        assertEq(
-            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
-            0
-        );
-    }
-
-    function test_withdrawAndBridgeWithHop() private {
-        // Deposits to the valut as the sender
-        _depositToVault(sender, EARTHQUAKE_VAULT);
-        bytes1 funcSelector = 0x02;
-        bytes1 bridgeId = 0x03;
-        uint16 srcChainId = 1;
-
-        // Withdraw from vault
-        vm.roll(block.timestamp);
-        vm.startPrank(sender);
-        zapDest.withdraw(
-            funcSelector,
-            bridgeId,
-            address(this),
-            EPOCH_ID,
-            srcChainId,
-            EARTHQUAKE_VAULT,
-            bytes("")
-        );
-
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(address(zapDest)), 0);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(sender), 0);
-        assertEq(
-            IERC1155(EARTHQUAKE_VAULT).balanceOf(address(zapDest), EPOCH_ID),
-            0
-        );
-    }
-
     /////////////////////////////////////////
     //       BRIDGE & SWAP FUNCTIONS       //
     /////////////////////////////////////////
@@ -406,7 +349,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -421,7 +364,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV2AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -433,7 +376,7 @@ contract BridgeDestTests is BridgeHelper {
 
         // Payload outputs: (1) bytes1 funcSelector: 0x03, (2) bytes1 bridgeId: 0x01, (3) address receiver: address(0x01)
         // (4) uint256 epochId: 1684713600, (5) bytes1 swapId: 0x01, (6) uint256 toAmountMin: 10e8, (7) bytes1 dexId: 0x01
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -451,7 +394,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -466,7 +409,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV2AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -476,7 +419,7 @@ contract BridgeDestTests is BridgeHelper {
                 toToken
             );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -494,7 +437,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -509,7 +452,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV3AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -519,7 +462,7 @@ contract BridgeDestTests is BridgeHelper {
                 toToken
             );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -541,7 +484,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set up bridge info
@@ -557,7 +500,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV2AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -567,7 +510,7 @@ contract BridgeDestTests is BridgeHelper {
                 USDC_ADDRESS // toToken
             );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -586,7 +529,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set the hop bridge
@@ -602,7 +545,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV2AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -612,7 +555,7 @@ contract BridgeDestTests is BridgeHelper {
                 USDT_ADDRESS // toToken
             );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -630,7 +573,7 @@ contract BridgeDestTests is BridgeHelper {
         uint16 srcChainId = 1;
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Set the hop bridge
@@ -646,7 +589,7 @@ contract BridgeDestTests is BridgeHelper {
             uint64 nonce,
             bytes memory payload
         ) = _setupSwapV3AndBridge(
-                layerZeroRelayer,
+                layerZeroEndpoint,
                 sender,
                 EPOCH_ID,
                 EARTHQUAKE_VAULT,
@@ -656,7 +599,7 @@ contract BridgeDestTests is BridgeHelper {
                 USDC_ADDRESS // toToken
             );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectEmit(true, true, true, false);
         emit ReceivedWithdrawal(0x01, sender, amount); // 0x01 is the funcSelector for withdraw
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
@@ -676,7 +619,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             address(0),
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -706,7 +649,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             address(0),
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -721,7 +664,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             address(0),
             CAMELOT_FACTORY,
@@ -736,7 +679,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             address(0),
@@ -751,7 +694,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -766,7 +709,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -781,7 +724,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -796,7 +739,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -811,7 +754,7 @@ contract BridgeDestTests is BridgeHelper {
         new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -918,20 +861,45 @@ contract BridgeDestTests is BridgeHelper {
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
-    function testErrors_lzReceiveInvalidCallerMapping() public {
+    function testErrors_lzReceiveInvalidLength() public {
         uint16 srcChainId = 1;
         bytes memory srcAddress = abi.encode(sender);
         uint64 nonce = 0;
         bytes memory payload = "";
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
+        vm.expectRevert(IErrors.InvalidLength.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_lzReceiveRemoteNotSet() public {
+        uint16 srcChainId = 1;
+        bytes memory srcAddress;
+        uint64 nonce = 0;
+        bytes memory payload = "";
+
+        vm.startPrank(layerZeroEndpoint);
+        vm.expectRevert(IErrors.RemoteNotSet.selector);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
+
+    function testErrors_lzReceiveInvalidCallerMapping() public {
+        uint16 srcChainId = 1;
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        bytes memory srcAddress = abi.encode(sender);
+        uint64 nonce = 0;
+        bytes memory payload = "";
+
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.InvalidCaller.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
     function testErrors_lzReceiveInvalidFuncSelec() public {
         uint16 srcChainId = 1;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        bytes memory srcAddress = abi.encode(layerZeroEndpoint);
         uint64 nonce = 0;
 
         // Encode data
@@ -946,17 +914,17 @@ contract BridgeDestTests is BridgeHelper {
         );
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.InvalidFunctionId.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
     function testErrors_withdrawNullBalance() public {
         uint16 srcChainId = 1;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        bytes memory srcAddress = abi.encode(layerZeroEndpoint);
         uint64 nonce = 0;
 
         // Encode data
@@ -971,10 +939,10 @@ contract BridgeDestTests is BridgeHelper {
         );
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.NullBalance.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
@@ -983,11 +951,11 @@ contract BridgeDestTests is BridgeHelper {
         // Deposits to the valut as the sender
         uint16 srcChainId = 1;
         uint64 nonce = 0;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        bytes memory srcAddress = abi.encode(layerZeroEndpoint);
         uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -1011,7 +979,7 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.InvalidFunctionId.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
@@ -1020,11 +988,11 @@ contract BridgeDestTests is BridgeHelper {
         // Deposits to the valut as the sender
         uint16 srcChainId = 1;
         uint64 nonce = 0;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        bytes memory srcAddress = abi.encode(layerZeroEndpoint);
         uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -1051,7 +1019,7 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.InvalidSwapId.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
@@ -1060,11 +1028,11 @@ contract BridgeDestTests is BridgeHelper {
         // Deposits to the valut as the sender
         uint16 srcChainId = 1;
         uint64 nonce = 0;
-        bytes memory srcAddress = abi.encode(layerZeroRelayer);
+        bytes memory srcAddress = abi.encode(layerZeroEndpoint);
         uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
 
         // Set the trusted remote
-        bytes memory trustedAddress = abi.encode(layerZeroRelayer);
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
         // Calculate amount received in withdraw
@@ -1088,7 +1056,7 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
-        vm.startPrank(layerZeroRelayer);
+        vm.startPrank(layerZeroEndpoint);
         vm.expectRevert(IErrors.InvalidBridgeId.selector);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }

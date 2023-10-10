@@ -16,4 +16,6 @@ interface IErrors {
     error InvalidFromToken();
     error NullBalance();
     error IneligibleRefund();
+    error InvalidLength();
+    error RemoteNotSet();
 }

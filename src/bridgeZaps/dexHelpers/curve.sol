@@ -8,7 +8,8 @@ import {ICurvePair} from "../../interfaces/dexes/ICurvePair.sol";
 
 contract CurveSwapper is IErrors {
     using SafeTransferLib for ERC20;
-    address payable immutable wethAddress;
+    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address payable public immutable wethAddress;
 
     /** @notice Invoked in SwapController constructor
         @param _wethAddress The weth address
@@ -153,7 +154,7 @@ contract CurveSwapper is IErrors {
     ) internal returns (uint256 amountOut) {
         amountOut = fromAmount;
         for (uint256 i = 0; i < pools.length; ) {
-            if (path[i + 1] != address(0)) {
+            if (path[i + 1] != ETH) {
                 amountOut = _swap(
                     path[i],
                     path[i + 1],

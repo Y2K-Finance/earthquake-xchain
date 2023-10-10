@@ -10,14 +10,16 @@ import {PermitUtils} from "./PermitUtils.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IEarthQuakeVault, IERC1155} from "../utils/Interfaces.sol";
 import {ISignatureTransfer} from "../../src/interfaces/ISignatureTransfer.sol";
+import {IPermit2} from "./IPermit2.sol";
 
 contract BridgeHelper is Helper, PermitUtils {
     address stargateRelayer;
     address stargateRelayerEth;
-    address layerZeroRelayer;
+    address layerZeroEndpoint;
 
     ZapDest public zapDest;
     ZapFrom public zapFrom;
+    IPermit2 public permit2;
 
     uint256 mainnetFork;
     uint256 arbitrumFork;
@@ -55,12 +57,12 @@ contract BridgeHelper is Helper, PermitUtils {
 
         stargateRelayer = sender;
         stargateRelayerEth = secondSender;
-        layerZeroRelayer = thirdSender;
+        layerZeroEndpoint = thirdSender;
 
         zapDest = new ZapDest(
             stargateRelayer,
             stargateRelayerEth,
-            layerZeroRelayer,
+            layerZeroEndpoint,
             CELER_BRIDGE,
             HYPHEN_BRIDGE,
             CAMELOT_FACTORY,
@@ -90,7 +92,6 @@ contract BridgeHelper is Helper, PermitUtils {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -113,14 +114,14 @@ contract BridgeHelper is Helper, PermitUtils {
         vm.label(WETH_ADDRESS_ETH, "WETH");
         vm.label(address(zapFrom), "ZapFrom");
         vm.label(STARGATE_ROUTER, "STG ERC20");
-        vm.label(STARGATE_ROUTER_USINGETH, "STG ETH");
 
+        permit2 = IPermit2(PERMIT_2);
         permitSender = vm.addr(permitSenderKey);
         permitReceiver = vm.addr(permitReceiverKey);
         vm.label(permitSender, "PermitSender");
         vm.label(permitReceiver, "PermitReceiver");
 
-        setERC20TestTokenApprovals(vm, permitReceiver, PERMIT_2);
+        setERC20TestTokenApprovals(vm, permitSender, PERMIT_2);
     }
 
     function setERC20TestTokenApprovals(
@@ -249,7 +250,7 @@ contract BridgeHelper is Helper, PermitUtils {
         nonce = 0;
         bytes1 funcSelector = 0x03;
         // NOTE: Using 1 eth deposit as standard
-        uint256 toAmountMin = (1700e6 * 99) / 100;
+        uint256 toAmountMin = (1000e6 * 99) / 100;
 
         if (bridgeId == 0x01) {
             uint256 celerSlippage = 10e6;
@@ -393,6 +394,12 @@ contract BridgeHelper is Helper, PermitUtils {
         uint256 nonce = 0;
         permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
         transferDetails = getTransferDetails(receiver, fromAmount);
-        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
+        bytes32 domainSeparator = permit2.DOMAIN_SEPARATOR();
+        sig = getPermitTransferSignature(
+            permit,
+            permitSenderKey,
+            spender,
+            domainSeparator
+        );
     }
 }

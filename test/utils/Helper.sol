@@ -8,6 +8,7 @@ abstract contract Helper is Test {
     string public ARBITRUM_RPC_URL = vm.envString("ARBITRUM_RPC_URL");
 
     ////////////// TOKEEN INFO STATE VARS ARBITRUM //////////////
+    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address constant USDC_ADDRESS = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address constant USDT_ADDRESS = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
     address constant DAI_ADDRESS = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
@@ -128,9 +129,7 @@ abstract contract Helper is Test {
     address constant WBTC_ADDRESS_ETH =
         0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address constant STARGATE_ROUTER =
-        0x8731d54E9D02c286767d56ac03e8037C07e01e98;
-    address constant STARGATE_ROUTER_USINGETH =
-        0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
+        0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9;
     address constant LAYER_ZERO_ROUTER_LOCAL =
         0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675;
     address constant LAYER_ZERO_ROUTER_REMOTE =
