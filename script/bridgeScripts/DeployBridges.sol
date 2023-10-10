@@ -6,18 +6,21 @@ import "forge-std/console2.sol";
 import "../../test/utils/Helper.sol";
 import "../../src/bridgeZaps/zapDest.sol";
 import "../../src/bridgeZaps/zapFrom.sol";
+import "../../src/bridgeZaps/mock/mockVault.sol";
 
 // forge script DeployLzScript --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 // forge script DeployLzScript --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 // forge script DeployLzScript --rpc-url $OPTIMISM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --skip-simulation --slow -vv
 contract DeployLzScript is Script, Helper {
     uint256 network;
+    bool deployMockVault;
     address public stargateRelayer = 0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614;
     address public stargateRelayerEth =
         0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
 
     function setUp() public {
-        network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism
+        network = 10; // 1: mainnet, 42161: arbitrum, 10: optimism, 999: null network to deploy vault
+        deployMockVault = true;
         y2kArbRouter = 0x546355099673a055F3a3aAb7007b9f0F5567832a;
     }
 
@@ -31,11 +34,18 @@ contract DeployLzScript is Script, Helper {
             _deployToArbitrum();
         } else if (network == 10) {
             _deployToOptimism();
+        } else if (deployMockVault) {
+            _deployMockVault();
         } else {
             revert();
         }
 
         vm.stopBroadcast();
+    }
+
+    function _deployMockVault() internal {
+        MockVault mockVault = new MockVault(WETH_ADDRESS);
+        console2.logAddress(address(mockVault));
     }
 
     function _deployToArbitrum() internal {
@@ -57,7 +67,6 @@ contract DeployLzScript is Script, Helper {
 
     function _deployToOptimism() internal {
         address stargateRouterOptimism = 0xB0D502E938ed5f4df2E681fE6E419ff29631d62b;
-        address stargateRouterOptimismEth = 0xb1b2eeF380f21747944f46d28f683cD1FBB4d03c;
         // NOTE: LZ chainId is 111 for Optimism
         address layerZeroRouterOptimism = 0x3c2269811836af69497E5F486A85D7316753cf62;
         address uniswapV2ForkFactoryOptimism = 0x7eeaE829DF28f9ce522274d577970dC9FF3e64B2;
@@ -68,7 +77,6 @@ contract DeployLzScript is Script, Helper {
         ZapFrom zapFrom = new ZapFrom(
             ZapFrom.Config(
                 stargateRouterOptimism,
-                stargateRouterOptimismEth,
                 layerZeroRouterOptimism,
                 y2kArbRouter,
                 uniswapV2ForkFactoryOptimism,
@@ -88,7 +96,6 @@ contract DeployLzScript is Script, Helper {
         ZapFrom zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
