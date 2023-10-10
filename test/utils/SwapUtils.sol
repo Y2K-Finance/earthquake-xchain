@@ -10,13 +10,10 @@ import {Helper} from "./Helper.sol";
 
 import {Y2KCamelotZap} from "../../src//zaps/Y2KCamelotZap.sol";
 import {Y2KUniswapV2Zap} from "../../src//zaps/Y2KUniswapV2Zap.sol";
-import {Y2KChronosZap} from "../../src//zaps/Y2KChronosZap.sol";
 import {Y2KBalancerZap} from "../../src//zaps/Y2KBalancerZap.sol";
 import {Y2KUniswapV3Zap} from "../../src//zaps/Y2KUniswapV3Zap.sol";
-import {Y2KTraderJoeZap} from "../../src//zaps/Y2KTraderJoeZap.sol";
 import {Y2KCurveZap} from "../../src//zaps/Y2KCurveZap.sol";
 import {Y2KGMXZap} from "../../src//zaps/Y2KGMXZap.sol";
-import {Y2KvlZap} from "../../src//zaps/Y2KvlZap.sol";
 
 import {IBalancerVault} from "../../src/interfaces/dexes/IBalancerVault.sol";
 import {IEarthQuakeVault, IERC1155} from "./Interfaces.sol";
@@ -34,14 +31,12 @@ interface IGMXVault {
 contract SwapHelper is Helper, PermitUtils {
     Y2KCamelotZap public zapCamelot;
     Y2KUniswapV2Zap public zapSushiV2;
-    Y2KChronosZap public zapChronos;
     Y2KBalancerZap public zapBalancer;
     Y2KUniswapV3Zap public zapUniswapV3;
     Y2KCurveZap public zapCurve;
     Y2KCurveZap public zapCurveUSDT;
     Y2KGMXZap public zapGMX;
-    Y2KTraderJoeZap public zapTraderJoe;
-    Y2KvlZap public zapvlY2K;
+    IPermit2 public permit2;
 
     address constant depositReceiver = address(0x11);
 
@@ -62,19 +57,6 @@ contract SwapHelper is Helper, PermitUtils {
         zapCurve = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2);
         zapCurveUSDT = new Y2KCurveZap(WETH_ADDRESS, PERMIT_2);
         zapGMX = new Y2KGMXZap(GMX_VAULT, PERMIT_2);
-        zapvlY2K = new Y2KvlZap(
-            BALANCER_VAULT,
-            PERMIT_2,
-            VL_Y2K,
-            BALANCER_Y2K_LP_TOKEN
-        );
-
-        zapTraderJoe = new Y2KTraderJoeZap(
-            TJ_LEGACY_FACTORY,
-            TJ_FACTORY,
-            TJ_FACTORY_V1
-        );
-        zapChronos = new Y2KChronosZap(CHRONOS_FACTORY);
 
         vm.label(sender, "Sender");
         vm.label(depositReceiver, "Receiver");
@@ -90,12 +72,11 @@ contract SwapHelper is Helper, PermitUtils {
         vm.label(EARTHQUAKE_VAULT_USDT, "Earthquake Vault USDT");
         vm.label(address(zapCamelot), "Camelot Zapper");
         vm.label(address(zapSushiV2), "Sushi Zapper");
-        vm.label(address(zapChronos), "Chronos Zapper");
         vm.label(address(zapBalancer), "Balancer Zapper");
         vm.label(address(zapUniswapV3), "Uniswap V3 Zapper");
-        vm.label(address(zapTraderJoe), "Trader Joe Zapper");
         vm.label(address(zapCurve), "Curve Zapper");
 
+        permit2 = IPermit2(PERMIT_2);
         permitSender = vm.addr(permitSenderKey);
         permitReceiver = vm.addr(permitReceiverKey);
         vm.label(permitSender, "PermitSender");
@@ -114,50 +95,6 @@ contract SwapHelper is Helper, PermitUtils {
         IERC20(USDT_ADDRESS).approve(spender, type(uint256).max);
         IERC20(WETH_ADDRESS).approve(spender, type(uint256).max);
         vm.stopPrank();
-    }
-
-    /////////////////////////////////////////
-    //        vl Deposit HELPER            //
-    /////////////////////////////////////////
-
-    function _setupvlY2K(
-        address senderAddress
-    )
-        internal
-        returns (
-            uint256 y2kBalance,
-            uint256 wethBalance,
-            uint256 y2kAmountIn,
-            uint256 wethAmountIn,
-            IBalancerVault.JoinPoolRequest memory request
-        )
-    {
-        y2kAmountIn = 5000e18;
-        wethAmountIn = 5e17;
-        deal(Y2K_ADDRESS, senderAddress, 10_000_000);
-        assertEq(IERC20(Y2K_ADDRESS).balanceOf(senderAddress), y2kAmountIn);
-        IERC20(Y2K_ADDRESS).approve(address(zapvlY2K), y2kAmountIn);
-
-        deal(WETH_ADDRESS, senderAddress, 10_000_000);
-        assertEq(IERC20(WETH_ADDRESS).balanceOf(senderAddress), wethAmountIn);
-        IERC20(WETH_ADDRESS).approve(address(zapvlY2K), wethAmountIn);
-
-        address[] memory assets = new address[](2);
-        assets[0] = Y2K_ADDRESS;
-        assets[1] = WETH_ADDRESS;
-        uint256[] memory maxAmountsIn = new uint256[](2);
-        maxAmountsIn[0] = y2kAmountIn;
-        maxAmountsIn[1] = wethAmountIn;
-
-        request = IBalancerVault.JoinPoolRequest({
-            assets: assets,
-            maxAmountsIn: maxAmountsIn,
-            userData: "",
-            fromInternalBalance: false
-        });
-
-        y2kBalance = IERC20(Y2K_ADDRESS).balanceOf(senderAddress);
-        wethBalance = IERC20(WETH_ADDRESS).balanceOf(senderAddress);
     }
 
     /////////////////////////////////////////
@@ -737,43 +674,6 @@ contract SwapHelper is Helper, PermitUtils {
         assertEq(IERC1155(vaultAddress).balanceOf(sender, id), 0);
     }
 
-    // TODO: Curve 3x swap
-
-    function setupUSDCtoWETHTJ(
-        address wrapperAddress
-    )
-        public
-        returns (Y2KTraderJoeZap.Path memory path, uint256, uint256, uint256)
-    {
-        deal(USDC_ADDRESS, sender, 100_000_000);
-        assertEq(IERC20(USDC_ADDRESS).balanceOf(sender), 100e6);
-
-        path.pairBinSteps = new uint256[](1);
-        path.versions = new Y2KTraderJoeZap.Version[](1);
-        path.tokenPath = new IERC20[](2);
-
-        path.pairBinSteps[0] = 15;
-        path.versions[0] = Y2KTraderJoeZap.Version.V2_1;
-        path.tokenPath[0] = IERC20(USDC_ADDRESS);
-        path.tokenPath[1] = IERC20(WETH_ADDRESS);
-
-        uint256 fromAmount = 100_000_000;
-        uint256 toAmountMin = 500_000_000_000_000;
-        uint256 id = EPOCH_ID;
-
-        bool approved = IERC20(USDC_ADDRESS).approve(
-            address(wrapperAddress),
-            fromAmount
-        );
-        assertEq(approved, true);
-        assertEq(
-            IERC20(USDC_ADDRESS).allowance(sender, address(wrapperAddress)),
-            fromAmount
-        );
-        assertEq(IERC1155(EARTHQUAKE_VAULT).balanceOf(sender, id), 0);
-        return (path, fromAmount, toAmountMin, id);
-    }
-
     /////////////////////////////////////////
     //        PERMIT SWAP HELPERS           //
     /////////////////////////////////////////
@@ -794,6 +694,12 @@ contract SwapHelper is Helper, PermitUtils {
         uint256 nonce = 0;
         permit = defaultERC20PermitTransfer(token, nonce, fromAmount);
         transferDetails = getTransferDetails(receiver, fromAmount);
-        sig = getPermitTransferSignature(permit, permitSenderKey, spender);
+        bytes32 domainSeparator = permit2.DOMAIN_SEPARATOR();
+        sig = getPermitTransferSignature(
+            permit,
+            permitSenderKey,
+            spender,
+            domainSeparator
+        );
     }
 }

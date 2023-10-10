@@ -8,7 +8,7 @@ import {ICurvePair} from "../../interfaces/dexes/ICurvePair.sol";
 
 contract CurveSwapper is IErrors {
     using SafeTransferLib for ERC20;
-    address payable immutable wethAddress;
+    address payable public immutable wethAddress;
 
     /** @notice Invoked in SwapController constructor
         @param _wethAddress The weth address

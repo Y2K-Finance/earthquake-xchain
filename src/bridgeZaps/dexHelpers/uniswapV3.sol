@@ -108,7 +108,7 @@ contract UniswapV3Swapper is IErrors, IUniswapV3Callback {
         address tokenOut,
         uint256 fromAmount,
         uint24 fee
-    ) internal returns (uint256) {
+    ) private returns (uint256) {
         bool zeroForOne = tokenIn < tokenOut;
 
         if (zeroForOne) {

@@ -30,22 +30,25 @@ contract BridgeFromTests is BridgeHelper {
         assertTrue(supply != 0);
 
         assertEq(IStargateRouter(STARGATE_ROUTER).factory(), stargateFactory);
-        assertEq(
-            IStargateRouter(STARGATE_ROUTER_USINGETH).poolId(),
-            ethRouterPoolId
-        );
     }
 
     /////////////////////////////////////////
     //               STATE VARS            //
     /////////////////////////////////////////
     function test_stateVarsFrom() public {
+        assertEq(address(zapFrom.permit2()), PERMIT_2);
         assertEq(zapFrom.stargateRouter(), STARGATE_ROUTER);
-        assertEq(zapFrom.stargateRouterEth(), STARGATE_ROUTER_USINGETH);
+        assertEq(zapFrom.layerZeroRouter(), LAYER_ZERO_ROUTER_LOCAL);
+        assertEq(zapFrom.y2kArbRouter(), y2kArbRouter);
+        assertEq(
+            zapFrom.layerZeroRemoteAndLocal(),
+            abi.encodePacked(y2kArbRouter, address(zapFrom))
+        );
         assertEq(zapFrom.uniswapV2ForkFactory(), UNISWAP_V2_FACTORY);
         assertEq(zapFrom.sushiFactory(), SUSHI_V2_FACTORY_ETH);
         assertEq(zapFrom.uniswapV3Factory(), UNISWAP_V3_FACTORY);
         assertEq(zapFrom.balancerVault(), BALANCER_VAULT);
+        assertEq(zapFrom.wethAddress(), WETH_ADDRESS_ETH);
     }
 
     /////////////////////////////////////////
@@ -100,7 +103,17 @@ contract BridgeFromTests is BridgeHelper {
     }
 
     function test_withdrawFrom() public {
-        bytes memory payload = abi.encode(address(0x01), 0);
+        address receiver = refundSender;
+        bytes1 funcSelector = 0x01;
+        bytes1 bridgeId = 0x02;
+        address vaultAddress = SGETH_ADDRESS;
+        bytes memory payload = abi.encode(
+            funcSelector,
+            bridgeId,
+            receiver,
+            EPOCH_ID,
+            vaultAddress
+        );
 
         vm.startPrank(sender);
         zapFrom.withdraw{value: 0.1 ether}(payload);
@@ -518,40 +531,7 @@ contract BridgeFromTests is BridgeHelper {
     /////////////////////////////////////////
     // BRIDGE & PERMIT2 SWAP FUNCTIONS ERC20//
     /////////////////////////////////////////
-    function test_PermitTransferFrom() private {
-        vm.startPrank(permitSender);
-        uint256 fromAmount = 10e6;
-
-        deal(USDC_ADDRESS_ETH, permitSender, fromAmount);
-        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(permitSender), fromAmount);
-
-        (
-            ISignatureTransfer.PermitTransferFrom memory permit,
-            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
-            bytes memory sig
-        ) = setupPermitSwap(
-                permitReceiver,
-                permitReceiver,
-                fromAmount,
-                USDC_ADDRESS_ETH
-            );
-        vm.startPrank(permitReceiver);
-        Permit2(PERMIT_2).permitTransferFrom(
-            permit,
-            transferDetails,
-            permitSender,
-            sig
-        );
-
-        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(permitSender), 0);
-        assertEq(
-            IERC20(USDC_ADDRESS_ETH).balanceOf(permitReceiver),
-            fromAmount
-        );
-        vm.stopPrank();
-    }
-
-    function test_permitSwapUniV2bridge() private {
+    function test_permitSwapUniV2bridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
@@ -570,11 +550,10 @@ contract BridgeFromTests is BridgeHelper {
             EARTHQUAKE_VAULT
         );
 
+        vm.startPrank(permitSender);
         vm.deal(permitSender, 1e18);
         deal(fromToken, permitSender, amountIn);
         assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
-
-        vm.startPrank(permitSender);
         (
             ISignatureTransfer.PermitTransferFrom memory permit,
             ISignatureTransfer.SignatureTransferDetails memory transferDetails,
@@ -602,7 +581,7 @@ contract BridgeFromTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function test_permitSwapSushibridge() private {
+    function test_permitSwapSushibridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
@@ -641,7 +620,7 @@ contract BridgeFromTests is BridgeHelper {
         vm.stopPrank();
     }
 
-    function test_permitSwapUniV3bridge() private {
+    function test_permitSwapUniV3bridge() public {
         uint256 amountIn = 1e18;
         address fromToken = WETH_ADDRESS_ETH;
         address receivedToken = USDC_ADDRESS_ETH;
@@ -1002,7 +981,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 address(0),
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1021,7 +999,6 @@ contract BridgeFromTests is BridgeHelper {
             ZapFrom.Config(
                 STARGATE_ROUTER,
                 address(0),
-                LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
                 SUSHI_V2_FACTORY_ETH,
@@ -1038,25 +1015,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
-                address(0),
-                y2kArbRouter,
-                UNISWAP_V2_FACTORY,
-                SUSHI_V2_FACTORY_ETH,
-                UNISWAP_V3_FACTORY,
-                BALANCER_VAULT,
-                WETH_ADDRESS_ETH,
-                PERMIT_2,
-                PRIMARY_INIT_HASH_ETH,
-                SECONDARY_INIT_HASH_ETH
-            )
-        );
-
-        vm.expectRevert(IErrors.InvalidInput.selector);
-        zapFrom = new ZapFrom(
-            ZapFrom.Config(
-                STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 address(0),
                 UNISWAP_V2_FACTORY,
@@ -1074,7 +1032,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 address(0),
@@ -1092,7 +1049,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1110,7 +1066,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1128,7 +1083,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1146,7 +1100,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1164,7 +1117,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1182,7 +1134,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,
@@ -1200,7 +1151,6 @@ contract BridgeFromTests is BridgeHelper {
         zapFrom = new ZapFrom(
             ZapFrom.Config(
                 STARGATE_ROUTER,
-                STARGATE_ROUTER_USINGETH,
                 LAYER_ZERO_ROUTER_LOCAL,
                 y2kArbRouter,
                 UNISWAP_V2_FACTORY,

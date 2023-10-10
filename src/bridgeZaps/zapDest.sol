@@ -28,7 +28,7 @@ contract ZapDest is
     using BytesLib for bytes;
     address public immutable stargateRelayer;
     address public immutable stargateRelayerEth;
-    address public immutable layerZeroRelayer;
+    address public immutable layerZeroEndpoint;
 
     mapping(address => uint256) public addrCounter;
     mapping(uint16 => bytes) public trustedRemoteLookup;
@@ -59,7 +59,7 @@ contract ZapDest is
         @dev Calls constructors for BridgeController, UniswapV2Swapper, and UniswapV3Swapper
         @param _stargateRelayer The address of the Stargate relayer on Arbitrum
         @param _stargateRelayerEth The address of the Stargate ETH relayer on Ethereum
-        @param _layerZeroRelayer The address of the LayerZero relayer on Arbitrum
+        @param _layerZeroEndpoint The address of the LayerZero relayer on Arbitrum
         @param _celerBridge The address of the Celer bridge on Arbitrum
         @param _hyphenBridge The address of the Hyphen bridge on Arbitrum
         @param _uniswapV2Factory The address of the Uniswap V2 factory on Arbitrum (fork)
@@ -72,7 +72,7 @@ contract ZapDest is
     constructor(
         address _stargateRelayer,
         address _stargateRelayerEth,
-        address _layerZeroRelayer,
+        address _layerZeroEndpoint,
         address _celerBridge,
         address _hyphenBridge,
         address _uniswapV2Factory,
@@ -95,10 +95,10 @@ contract ZapDest is
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
         if (_stargateRelayerEth == address(0)) revert InvalidInput();
-        if (_layerZeroRelayer == address(0)) revert InvalidInput();
+        if (_layerZeroEndpoint == address(0)) revert InvalidInput();
         stargateRelayer = _stargateRelayer;
         stargateRelayerEth = _stargateRelayerEth;
-        layerZeroRelayer = _layerZeroRelayer;
+        layerZeroEndpoint = _layerZeroEndpoint;
     }
 
     //////////////////////////////////////////////
@@ -196,14 +196,14 @@ contract ZapDest is
         uint64 _nonce,
         bytes memory _payload
     ) external override {
-        if (msg.sender != layerZeroRelayer) revert InvalidCaller();
-        if (
-            keccak256(_srcAddress) !=
-            keccak256(trustedRemoteLookup[_srcChainId])
-        ) revert InvalidCaller();
+        if (msg.sender != layerZeroEndpoint) revert InvalidCaller();
 
-        address fromAddress;
-        // TODO: Need additional logic to prevent malicious withdrawals to dead chains not by user
+        bytes memory trustedRemote = trustedRemoteLookup[_srcChainId];
+        if (trustedRemote.length != _srcAddress.length) revert InvalidLength();
+        if (trustedRemote.length == 0) revert RemoteNotSet();
+        if (keccak256(_srcAddress) != keccak256(trustedRemote))
+            revert InvalidCaller();
+
         (
             bytes1 funcSelector,
             bytes1 bridgeId,
@@ -246,7 +246,7 @@ contract ZapDest is
         address vaultAddress,
         bytes memory _withdrawPayload
     ) external {
-        // TODO: Make sure the caller is the receiver
+        if (msg.sender != receiver) revert InvalidCaller();
         _withdraw(
             funcSelector,
             bridgeId,

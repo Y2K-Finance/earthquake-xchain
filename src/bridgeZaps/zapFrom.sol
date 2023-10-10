@@ -5,6 +5,7 @@ import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "lib/solmate/src/utils/SafeTransferLib.sol";
 import {WETH} from "lib/solmate/src/tokens/WETH.sol";
 import {SwapController} from "./controllers/swapController.sol";
+import {BytesLib} from "../libraries/BytesLib.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IStargateRouter} from "../interfaces/bridges/IStargateRouter.sol";
 import {ILayerZeroRouter} from "../interfaces/bridges/ILayerZeroRouter.sol";
@@ -18,14 +19,12 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     uint16 public constant ARBITRUM_CHAIN_ID = 110; // NOTE: Id used by Stargate/LayerZero for Arbitrum
     IPermit2 public immutable permit2;
     address public immutable stargateRouter;
-    address public immutable stargateRouterEth;
     address public immutable layerZeroRouter;
     address public immutable y2kArbRouter;
     bytes public layerZeroRemoteAndLocal;
 
     struct Config {
         address _stargateRouter;
-        address _stargateRouterEth;
         address _layerZeroRouterLocal;
         address _y2kArbRouter;
         address _uniswapV2Factory;
@@ -56,12 +55,10 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         )
     {
         if (_config._stargateRouter == address(0)) revert InvalidInput();
-        if (_config._stargateRouterEth == address(0)) revert InvalidInput();
         if (_config._layerZeroRouterLocal == address(0)) revert InvalidInput();
         if (_config._y2kArbRouter == address(0)) revert InvalidInput();
         if (_config._permit2 == address(0)) revert InvalidInput();
         stargateRouter = _config._stargateRouter;
-        stargateRouterEth = _config._stargateRouterEth;
         layerZeroRouter = _config._layerZeroRouterLocal;
         layerZeroRemoteAndLocal = abi.encodePacked(
             _config._y2kArbRouter,
@@ -89,8 +86,6 @@ contract ZapFrom is SwapController, ISignatureTransfer {
         bytes calldata payload
     ) external payable {
         _checkConditions(amountIn);
-        if (msg.value == 0) revert InvalidInput();
-        if (amountIn == 0) revert InvalidInput();
 
         if (fromToken != address(0)) {
             ERC20(fromToken).safeTransferFrom(
@@ -208,6 +203,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     **/
     function withdraw(bytes memory payload) external payable {
         if (msg.value == 0) revert InvalidInput();
+        payload = replaceReceiver(payload);
         ILayerZeroRouter(layerZeroRouter).send{value: msg.value}(
             uint16(ARBITRUM_CHAIN_ID), // destination LayerZero chainId
             layerZeroRemoteAndLocal, // send to this address on the destination
@@ -221,6 +217,24 @@ contract ZapFrom is SwapController, ISignatureTransfer {
     //////////////////////////////////////////////
     //                 INTERNAL                 //
     //////////////////////////////////////////////
+    /** @notice Slices the msg.sender into the 32 byte slot reserved for receiver
+        @dev Data is decoded on the destChain and receiver is used for withdrawal - limits withdrawals to owners
+        @param payload The data to be decoded and used for withdrawal action on the destChain
+    **/
+    function replaceReceiver(
+        bytes memory payload
+    ) internal view returns (bytes memory) {
+        payload = BytesLib.concat(
+            BytesLib.concat(
+                BytesLib.sliceBytes(payload, 0, 0x40),
+                abi.encode(msg.sender)
+            ),
+            BytesLib.sliceBytes(payload, 0x60, payload.length - 0x60)
+        );
+
+        return payload;
+    }
+
     /** @notice Checks msg.value and amountIn for valid input
         @dev Message value must be > 0 to pay for Stargate/LayerZero relayer fees
         @param amountIn The amount of fromToken in
@@ -251,7 +265,7 @@ contract ZapFrom is SwapController, ISignatureTransfer {
             uint256 msgValue = msg.value > amountIn
                 ? msg.value
                 : amountIn + msg.value;
-            IStargateRouter(stargateRouterEth).swapETHAndCall{value: msgValue}(
+            IStargateRouter(stargateRouter).swapETHAndCall{value: msgValue}(
                 uint16(ARBITRUM_CHAIN_ID), // destination Stargate chainId
                 payable(msg.sender), // refund additional messageFee to this address
                 abi.encodePacked(y2kArbRouter), // the receiver of the destination ETH
