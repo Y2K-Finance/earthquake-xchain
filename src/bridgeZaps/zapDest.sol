@@ -7,6 +7,7 @@ import {BridgeController} from "./controllers/bridgeController.sol";
 import {BytesLib} from "../libraries/BytesLib.sol";
 import {UniswapV3Swapper} from "./dexHelpers/uniswapV3Dest.sol";
 import {UniswapV2Swapper} from "./dexHelpers/uniswapV2Dest.sol";
+import {NonblockingLzApp} from "./NonBlockingLzApp.sol";
 
 import {IStargateReceiver} from "../interfaces/bridges/IStargateReceiver.sol";
 import {ILayerZeroReceiver} from "../interfaces/bridges/ILayerZeroReceiver.sol";
@@ -22,6 +23,7 @@ contract ZapDest is
     BridgeController,
     UniswapV2Swapper,
     UniswapV3Swapper,
+    NonblockingLzApp,
     IStargateReceiver,
     ILayerZeroReceiver
 {
@@ -90,6 +92,7 @@ contract ZapDest is
             _secondaryInitHash
         )
         UniswapV3Swapper(_uniswapV3Factory)
+        NonblockingLzApp(_layerZeroEndpoint)
     {
         if (_stargateRelayer == address(0)) revert InvalidInput();
         if (_layerZeroEndpoint == address(0)) revert InvalidInput();
@@ -210,6 +213,21 @@ contract ZapDest is
         if (keccak256(_srcAddress) != keccak256(trustedRemote))
             revert InvalidCaller();
 
+        _blockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
+    }
+
+    /** @notice The non-blocking function call
+        @param _srcChainId - the source endpoint identifier
+        @param _srcAddress - the source sending contract address from the source chain
+        @param _nonce - the ordered message nonce
+        @param _payload - the signed payload is the UA bytes has encoded to be sent
+    **/
+    function _nonblockingLzReceive(
+        uint16 _srcChainId,
+        bytes memory _srcAddress,
+        uint64 _nonce,
+        bytes memory _payload
+    ) internal virtual override {
         (
             bytes1 funcSelector,
             bytes1 bridgeId,

@@ -44,6 +44,13 @@ contract BridgeHelper is Helper, PermitUtils {
 
     event RefundStaged(address sender, address token, uint256 amount);
     event RefundClaimed(address sender, address token, uint256 amount);
+    event MessageFailed(
+        uint16 _srcChainId,
+        bytes _srcAddress,
+        uint64 _nonce,
+        bytes _payload,
+        bytes _reason
+    );
 
     /////////////////////////////////////////
     //               CONFIG                //

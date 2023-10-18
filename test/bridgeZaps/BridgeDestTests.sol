@@ -921,8 +921,12 @@ contract BridgeDestTests is BridgeHelper {
         bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
+        bytes memory reason = abi.encodePacked(
+            IErrors.InvalidFunctionId.selector
+        );
         vm.startPrank(layerZeroEndpoint);
-        vm.expectRevert(IErrors.InvalidFunctionId.selector);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
@@ -946,8 +950,10 @@ contract BridgeDestTests is BridgeHelper {
         bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
         zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
 
+        bytes memory reason = abi.encodePacked(IErrors.NullBalance.selector);
         vm.startPrank(layerZeroEndpoint);
-        vm.expectRevert(IErrors.NullBalance.selector);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
@@ -983,8 +989,12 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
+        bytes memory reason = abi.encodePacked(
+            IErrors.InvalidFunctionId.selector
+        );
         vm.startPrank(layerZeroEndpoint);
-        vm.expectRevert(IErrors.InvalidFunctionId.selector);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
@@ -1023,8 +1033,10 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
+        bytes memory reason = abi.encodePacked(IErrors.InvalidSwapId.selector);
         vm.startPrank(layerZeroEndpoint);
-        vm.expectRevert(IErrors.InvalidSwapId.selector);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 
@@ -1060,8 +1072,12 @@ contract BridgeDestTests is BridgeHelper {
             500
         );
 
+        bytes memory reason = abi.encodePacked(
+            IErrors.InvalidBridgeId.selector
+        );
         vm.startPrank(layerZeroEndpoint);
-        vm.expectRevert(IErrors.InvalidBridgeId.selector);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
 }
