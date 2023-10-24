@@ -1080,4 +1080,42 @@ contract BridgeDestTests is BridgeHelper {
         emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
         zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
     }
+
+    function testError_bridgeHop_InvalidHopBridge() public {
+        // Deposits to the valut as the sender
+        uint256 amount = _depositToVault(sender, EARTHQUAKE_VAULT);
+        uint16 srcChainId = 1;
+
+        // Set the trusted remote
+        bytes memory trustedAddress = abi.encode(layerZeroEndpoint);
+        zapDest.setTrustedRemoteLookup(srcChainId, trustedAddress);
+
+        // Calculate amount received in withdraw
+        vm.roll(block.timestamp);
+        bytes1 swapId = 0x01;
+        bytes1 bridgeId = 0x03;
+        bytes1 dexId = 0x02; // 0x02 for Sushi
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory payload
+        ) = _setupSwapV2AndBridge(
+                layerZeroEndpoint,
+                sender,
+                EPOCH_ID,
+                EARTHQUAKE_VAULT,
+                bridgeId,
+                swapId,
+                dexId,
+                USDT_ADDRESS // toToken
+            );
+
+        bytes memory reason = abi.encodePacked(
+            IErrors.InvalidHopBridge.selector
+        );
+        vm.startPrank(layerZeroEndpoint);
+        vm.expectEmit(true, true, true, true);
+        emit MessageFailed(srcChainId, srcAddress, nonce, payload, reason);
+        zapDest.lzReceive(srcChainId, srcAddress, nonce, payload);
+    }
 }

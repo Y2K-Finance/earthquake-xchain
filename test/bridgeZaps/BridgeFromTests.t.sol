@@ -578,25 +578,37 @@ contract BridgeFromTests is BridgeHelper {
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, toAmountMin);
 
-        vm.startPrank(sender);
-        deal(WETH_ADDRESS_ETH, sender, amountIn);
-        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), amountIn);
+        vm.startPrank(permitSender);
+        vm.deal(permitSender, 1e18);
+        deal(fromToken, permitSender, amountIn);
+        assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapFrom),
+                address(zapFrom),
+                amountIn,
+                fromToken
+            );
 
-        IERC20(WETH_ADDRESS_ETH).approve(address(zapFrom), amountIn);
-        zapFrom.swapAndBridge{value: 0.1 ether}(
-            amountIn,
-            fromToken,
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT,
-            swapPayload
-        );
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: receivedToken,
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: dexId,
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
+        zapFrom.permitSwapAndBridge{value: 0.1 ether}(permitInput);
 
-        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
+        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(permitSender), 0);
         vm.stopPrank();
     }
 
@@ -616,25 +628,167 @@ contract BridgeFromTests is BridgeHelper {
         uint256 toAmountMin = 1000e6;
         bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
 
-        vm.startPrank(sender);
-        deal(WETH_ADDRESS_ETH, sender, amountIn);
-        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), amountIn);
+        vm.startPrank(permitSender);
+        vm.deal(permitSender, 1e18);
+        deal(fromToken, permitSender, amountIn);
+        assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapFrom),
+                address(zapFrom),
+                amountIn,
+                fromToken
+            );
 
-        IERC20(WETH_ADDRESS_ETH).approve(address(zapFrom), amountIn);
-        zapFrom.swapAndBridge{value: 0.1 ether}(
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: receivedToken,
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: dexId,
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
+        zapFrom.permitSwapAndBridge{value: 0.1 ether}(permitInput);
+
+        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(permitSender), 0);
+        vm.stopPrank();
+    }
+
+    function test_permitSwapCurve() public {
+        uint256 amountIn = 100e6;
+        address fromToken = USDC_ADDRESS_ETH;
+        address receivedToken = ETH;
+        uint16 srcPoolId = 1;
+        uint16 dstPoolId = 1;
+        bytes1 dexId = 0x04;
+
+        bytes memory swapPayload = _setupCurveMultiBridge(
             amountIn,
             fromToken,
-            receivedToken,
-            srcPoolId,
-            dstPoolId,
-            dexId,
-            sender,
-            EPOCH_ID,
-            EARTHQUAKE_VAULT,
-            swapPayload
+            receivedToken
         );
 
-        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(sender), 0);
+        vm.startPrank(permitSender);
+        vm.deal(permitSender, 1e18);
+        deal(fromToken, permitSender, amountIn);
+        assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapFrom),
+                address(zapFrom),
+                amountIn,
+                fromToken
+            );
+
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: receivedToken,
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: dexId,
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
+        zapFrom.permitSwapAndBridge{value: 0.1 ether}(permitInput);
+
+        assertEq(IERC20(WETH_ADDRESS_ETH).balanceOf(permitSender), 0);
+        vm.stopPrank();
+    }
+
+    function _encodeBalancerPayload(
+        uint256 amountIn,
+        uint256 toAmountMin,
+        address receivedToken,
+        address fromToken
+    ) internal view returns (bytes memory) {
+        bytes32 poolId = 0x79c58f70905f734641735bc61e45c19dd9ad60bc0000000000000000000004e7;
+        uint256 deadline = block.timestamp + 1000;
+
+        IBalancer.SingleSwap memory singleSwap = IBalancer.SingleSwap({
+            poolId: poolId,
+            kind: IBalancer.SwapKind.GIVEN_IN,
+            assetIn: fromToken,
+            assetOut: receivedToken,
+            amount: amountIn,
+            userData: ""
+        });
+        IBalancer.Funds memory funds = IBalancer.Funds({
+            sender: payable(address(zapFrom)),
+            fromInternalBalance: false,
+            recipient: payable(address(zapFrom)),
+            toInternalBalance: false
+        });
+        return
+            abi.encodeWithSelector(
+                IBalancer.swap.selector,
+                singleSwap,
+                funds,
+                toAmountMin,
+                deadline
+            );
+    }
+
+    function test_permitSwapBalancerbridge() public {
+        uint256 amountIn = 100e18;
+        uint256 toAmountMin = 90e6;
+        address fromToken = DAI_ADDRESS_ETH;
+        address receivedToken = USDC_ADDRESS_ETH;
+        uint16 srcPoolId = 1;
+        uint16 dstPoolId = 1;
+
+        bytes memory swapPayload = _encodeBalancerPayload(
+            amountIn,
+            toAmountMin,
+            receivedToken,
+            fromToken
+        );
+
+        vm.startPrank(permitSender);
+        vm.deal(permitSender, amountIn);
+        deal(fromToken, permitSender, amountIn);
+        assertEq(IERC20(fromToken).balanceOf(permitSender), amountIn);
+        (
+            ISignatureTransfer.PermitTransferFrom memory permit,
+            ISignatureTransfer.SignatureTransferDetails memory transferDetails,
+            bytes memory sig
+        ) = setupPermitSwap(
+                address(zapFrom),
+                address(zapFrom),
+                amountIn,
+                fromToken
+            );
+
+        ZapFrom.PermitInput memory permitInput = ZapFrom.PermitInput({
+            receivedToken: receivedToken,
+            srcPoolId: srcPoolId,
+            dstPoolId: dstPoolId,
+            dexId: 0x05, // Balancer Id
+            permit: permit,
+            transferDetails: transferDetails,
+            sig: sig,
+            receiver: permitSender,
+            epochId: EPOCH_ID,
+            vaultAddress: EARTHQUAKE_VAULT,
+            swapPayload: swapPayload
+        });
+        zapFrom.permitSwapAndBridge{value: 0.1 ether}(permitInput);
+
+        assertEq(IERC20(DAI_ADDRESS_ETH).balanceOf(permitSender), 0);
         vm.stopPrank();
     }
 
@@ -1342,6 +1496,148 @@ contract BridgeFromTests is BridgeHelper {
             EPOCH_ID,
             EARTHQUAKE_VAULT,
             swapPayload
+        );
+    }
+
+    function testErrors_swapEth_toAmountMin() public {}
+
+    function testErrors_swapEthUniV3bridge_toAmountMin() public {
+        uint256 amountIn = 100e6;
+        address fromToken = USDC_ADDRESS_ETH;
+        address receivedToken = WETH_ADDRESS_ETH;
+        uint16 srcPoolId = 1;
+        uint16 dstPoolId = 1;
+
+        bytes1 dexId = 0x02;
+        address[] memory path = new address[](2);
+        path[0] = fromToken;
+        path[1] = receivedToken;
+        uint24[] memory fee = new uint24[](1);
+        fee[0] = 500;
+        uint256 toAmountMin = 1000e18;
+        bytes memory swapPayload = abi.encode(path, fee, toAmountMin);
+
+        vm.startPrank(sender);
+        deal(USDC_ADDRESS_ETH, sender, amountIn);
+        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), amountIn);
+
+        IERC20(USDC_ADDRESS_ETH).approve(address(zapFrom), amountIn);
+
+        vm.expectRevert();
+        zapFrom.swapAndBridge{value: 0.1 ether}(
+            amountIn,
+            fromToken,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            dexId,
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
+        );
+    }
+
+    function testErrors_swapCurveBridge_InvalidOutput() public {
+        uint256 amountIn = 500_0000; // 0.05 BTC
+        address fromToken = WBTC_ADDRESS_ETH;
+        address receivedToken = WETH_ADDRESS_ETH;
+        uint16 srcPoolId = 1;
+        uint16 dstPoolId = 1;
+        uint256 i = 1;
+        uint256 j = 2;
+        address pool = 0xD51a44d3FaE010294C616388b506AcdA1bfAAE46;
+        uint256 toAmountMin = 5e17;
+
+        bytes memory swapPayload = abi.encode(
+            bytes1(0x01), // swapType 1 on Curve
+            fromToken,
+            receivedToken,
+            i,
+            j,
+            pool,
+            amountIn,
+            toAmountMin
+        );
+
+        vm.startPrank(sender);
+        deal(WBTC_ADDRESS_ETH, sender, amountIn);
+        assertEq(IERC20(WBTC_ADDRESS_ETH).balanceOf(sender), amountIn);
+
+        IERC20(WBTC_ADDRESS_ETH).approve(address(zapFrom), amountIn);
+
+        vm.expectRevert(IErrors.InvalidOutput.selector);
+        zapFrom.swapAndBridge{value: 0.1 ether}(
+            amountIn,
+            fromToken,
+            receivedToken,
+            srcPoolId,
+            dstPoolId,
+            0x04, // Curve dexId
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT,
+            swapPayload
+        );
+    }
+
+    function testErrors_V3Callback_InputErrors() public {
+        vm.expectRevert();
+        zapFrom.uniswapV3SwapCallback(0, 1, bytes(""));
+
+        vm.expectRevert();
+        zapFrom.uniswapV3SwapCallback(1, 0, bytes(""));
+
+        address tokenIn = address(0x123);
+        address tokenOut = address(0x456);
+        uint24 fee = 10;
+        bytes memory data = abi.encode(tokenIn, tokenOut, fee);
+
+        vm.expectRevert(IErrors.InvalidCaller.selector);
+        zapFrom.uniswapV3SwapCallback(1, 1, bytes(""));
+    }
+
+    function testErrors_bridgeETH_MsgValueLEssThanAmount() public {
+        uint256 amountIn = 1.01 ether;
+        uint256 amount = 1.2 ether;
+        address fromToken = ETH;
+        uint16 srcPoolId = 13; // What should this be?
+        uint16 dstPoolId = 13; // What should this be?
+        uint256 balance = sender.balance;
+
+        vm.startPrank(sender);
+        vm.expectRevert();
+        zapFrom.bridge{value: amountIn}(
+            amount,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
+        );
+    }
+
+    function testError_bridgeERC20_NoERC20Balance() public {
+        uint256 amountIn = 1000e6;
+        address fromToken = USDC_ADDRESS_ETH;
+        uint16 srcPoolId = 1;
+        uint16 dstPoolId = 1;
+
+        deal(USDC_ADDRESS_ETH, sender, 0);
+        assertEq(IERC20(USDC_ADDRESS_ETH).balanceOf(sender), 0);
+
+        vm.startPrank(sender);
+        IERC20(USDC_ADDRESS_ETH).approve(address(zapFrom), amountIn);
+        vm.expectRevert();
+        zapFrom.bridge{value: 0.1 ether}(
+            amountIn,
+            fromToken,
+            srcPoolId,
+            dstPoolId,
+            sender,
+            EPOCH_ID,
+            EARTHQUAKE_VAULT
         );
     }
 }

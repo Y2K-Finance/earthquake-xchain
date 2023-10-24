@@ -137,6 +137,7 @@ contract BridgeHelper is Helper, PermitUtils {
         vm.startPrank(owner);
         IERC20(USDC_ADDRESS_ETH).approve(spender, type(uint256).max);
         IERC20(WETH_ADDRESS_ETH).approve(spender, type(uint256).max);
+        IERC20(DAI_ADDRESS_ETH).approve(spender, type(uint256).max);
         vm.stopPrank();
     }
 
@@ -406,5 +407,27 @@ contract BridgeHelper is Helper, PermitUtils {
             spender,
             domainSeparator
         );
+    }
+
+    function _encodePayload(
+        address fromToken,
+        address receivedToken,
+        int128 i,
+        int128 j,
+        address pool,
+        uint256 amountIn,
+        uint256 toAmountMin
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encode(
+                bytes1(0x01), // swapType 1 on Curve
+                fromToken,
+                receivedToken,
+                i,
+                j,
+                pool,
+                amountIn,
+                toAmountMin
+            );
     }
 }
