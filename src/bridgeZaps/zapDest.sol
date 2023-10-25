@@ -24,15 +24,12 @@ contract ZapDest is
     UniswapV2Swapper,
     UniswapV3Swapper,
     NonblockingLzApp,
-    IStargateReceiver,
-    ILayerZeroReceiver
+    IStargateReceiver
 {
     using BytesLib for bytes;
-    address public immutable layerZeroEndpoint;
     address public stargateRelayer;
 
     mapping(address => uint256) public addrCounter;
-    mapping(uint16 => bytes) public trustedRemoteLookup;
     mapping(bytes1 => address) public idToExchange;
     mapping(address => uint256) public whitelistedVault;
     mapping(address => mapping(address => mapping(uint256 => uint256)))
@@ -97,7 +94,6 @@ contract ZapDest is
         if (_stargateRelayer == address(0)) revert InvalidInput();
         if (_layerZeroEndpoint == address(0)) revert InvalidInput();
         stargateRelayer = _stargateRelayer;
-        layerZeroEndpoint = _layerZeroEndpoint;
     }
 
     //////////////////////////////////////////////
@@ -159,17 +155,14 @@ contract ZapDest is
     //                 PUBLIC                   //
     //////////////////////////////////////////////
     /** @notice Stargate relayer will invoke this function to bridge tokens with a payload
-        @param _chainId The remote chainId sending the tokens
-        @param _srcAddress The remote Bridge address
-        @param _nonce The message ordering nonce
         @param _token The token contract on the local chain
         @param amountLD The qty of local _token contract tokens
         @param _payload The bytes containing the toAddress
     **/
     function sgReceive(
-        uint16 _chainId,
-        bytes memory _srcAddress,
-        uint256 _nonce,
+        uint16,
+        bytes memory,
+        uint256,
         address _token,
         uint256 amountLD,
         bytes calldata _payload
@@ -201,11 +194,11 @@ contract ZapDest is
     **/
     function lzReceive(
         uint16 _srcChainId,
-        bytes memory _srcAddress,
+        bytes calldata _srcAddress,
         uint64 _nonce,
-        bytes memory _payload
-    ) external override {
-        if (msg.sender != layerZeroEndpoint) revert InvalidCaller();
+        bytes calldata _payload
+    ) public virtual override {
+        if (msg.sender != address(lzEndpoint)) revert InvalidCaller();
 
         bytes memory trustedRemote = trustedRemoteLookup[_srcChainId];
         if (trustedRemote.length != _srcAddress.length) revert InvalidLength();
@@ -218,14 +211,12 @@ contract ZapDest is
 
     /** @notice The non-blocking function call
         @param _srcChainId - the source endpoint identifier
-        @param _srcAddress - the source sending contract address from the source chain
-        @param _nonce - the ordered message nonce
         @param _payload - the signed payload is the UA bytes has encoded to be sent
     **/
     function _nonblockingLzReceive(
         uint16 _srcChainId,
-        bytes memory _srcAddress,
-        uint64 _nonce,
+        bytes memory,
+        uint64,
         bytes memory _payload
     ) internal virtual override {
         (

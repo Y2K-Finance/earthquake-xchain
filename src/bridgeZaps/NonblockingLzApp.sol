@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
+import "./LzApp.sol";
 import "../libraries/ExcessivelySafeCall.sol";
 
 /*
@@ -8,10 +9,10 @@ import "../libraries/ExcessivelySafeCall.sol";
  * this abstract class try-catch all fail messages and store locally for future retry. hence, non-blocking
  * NOTE: if the srcAddress is not configured properly, it will still block the message pathway from (srcChainId, srcAddress)
  */
-abstract contract NonblockingLzApp {
+abstract contract NonblockingLzApp is LzApp {
     using ExcessivelySafeCall for address;
 
-    constructor(address _endpoint) {}
+    constructor(address _endpoint) LzApp(_endpoint) {}
 
     mapping(uint16 => mapping(bytes => mapping(uint64 => bytes32)))
         public failedMessages;
@@ -36,7 +37,7 @@ abstract contract NonblockingLzApp {
         bytes memory _srcAddress,
         uint64 _nonce,
         bytes memory _payload
-    ) internal virtual {
+    ) internal virtual override {
         (bool success, bytes memory reason) = address(this).excessivelySafeCall(
             gasleft(),
             150,
@@ -79,7 +80,7 @@ abstract contract NonblockingLzApp {
     ) public virtual {
         // only internal transaction
         require(
-            msg.sender == address(this),
+            _msgSender() == address(this),
             "NonblockingLzApp: caller must be LzApp"
         );
         _nonblockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);

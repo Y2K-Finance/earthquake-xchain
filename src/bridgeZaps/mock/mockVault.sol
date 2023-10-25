@@ -16,19 +16,19 @@ contract MockVault {
     }
 
     // FUNCTIONS //
-    function depositETH(uint256 pid, address to) external payable {
+    function depositETH(uint256, address to) external payable {
         WETH(payable(address(asset))).deposit{value: msg.value}();
         balanceOf[to] += msg.value;
     }
 
-    function deposit(uint256 pid, uint256 amount, address to) external {
+    function deposit(uint256, uint256 amount, address to) external {
         asset.safeTransferFrom(msg.sender, address(this), amount);
         balanceOf[to] += amount;
     }
 
     function withdraw(
-        uint256 _id,
-        uint256 _shares,
+        uint256,
+        uint256,
         address _receiver,
         address _owner
     ) external {

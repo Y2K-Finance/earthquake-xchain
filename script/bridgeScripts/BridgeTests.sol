@@ -66,7 +66,6 @@ contract BridgeTestScript is Script, Helper {
         address fromToken = address(0);
         uint16 srcPoolId = 13; // What should this be?
         uint16 dstPoolId = 13; // What should this be?
-        uint256 depositType = fromToken == address(0) ? 1 : 2;
 
         zapFrom.bridge{value: amountIn}(
             amount,

@@ -33,7 +33,7 @@ contract BridgeDestTests is BridgeHelper {
     /////////////////////////////////////////
     function test_stateVarsDest() public {
         assertEq(zapDest.stargateRelayer(), stargateRelayer);
-        assertEq(zapDest.layerZeroEndpoint(), layerZeroEndpoint);
+        assertEq(address(zapDest.lzEndpoint()), layerZeroEndpoint);
         assertEq(address(zapDest.celerBridge()), CELER_BRIDGE);
         assertEq(address(zapDest.hyphenBridge()), HYPHEN_BRIDGE);
         assertEq(zapDest.uniswapV2ForkFactory(), CAMELOT_FACTORY);
