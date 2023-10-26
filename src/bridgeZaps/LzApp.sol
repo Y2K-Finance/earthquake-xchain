@@ -17,14 +17,8 @@ abstract contract LzApp is
 {
     using BytesLib for bytes;
 
-    // ua can not send payload larger than this by default, but it can be changed by the ua owner
-    uint public constant DEFAULT_PAYLOAD_SIZE_LIMIT = 10000;
-
     ILayerZeroEndpoint public immutable lzEndpoint;
     mapping(uint16 => bytes) public trustedRemoteLookup;
-    mapping(uint16 => mapping(uint16 => uint)) public minDstGasLookup;
-    mapping(uint16 => uint) public payloadSizeLimitLookup;
-    address public precrime;
 
     event SetPrecrime(address precrime);
     event SetTrustedRemote(uint16 _remoteChainId, bytes _path);
@@ -80,7 +74,6 @@ abstract contract LzApp is
             trustedRemote.length != 0,
             "LzApp: destination chain is not a trusted source"
         );
-        _checkPayloadSize(_dstChainId, _payload.length);
         lzEndpoint.send{value: _nativeFee}(
             _dstChainId,
             trustedRemote,
@@ -88,45 +81,6 @@ abstract contract LzApp is
             _refundAddress,
             _zroPaymentAddress,
             _adapterParams
-        );
-    }
-
-    function _checkGasLimit(
-        uint16 _dstChainId,
-        uint16 _type,
-        bytes memory _adapterParams,
-        uint _extraGas
-    ) internal view virtual {
-        uint providedGasLimit = _getGasLimit(_adapterParams);
-        uint minGasLimit = minDstGasLookup[_dstChainId][_type];
-        require(minGasLimit > 0, "LzApp: minGasLimit not set");
-        require(
-            providedGasLimit >= minGasLimit + _extraGas,
-            "LzApp: gas limit is too low"
-        );
-    }
-
-    function _getGasLimit(
-        bytes memory _adapterParams
-    ) internal pure virtual returns (uint gasLimit) {
-        require(_adapterParams.length >= 34, "LzApp: invalid adapterParams");
-        assembly {
-            gasLimit := mload(add(_adapterParams, 34))
-        }
-    }
-
-    function _checkPayloadSize(
-        uint16 _dstChainId,
-        uint _payloadSize
-    ) internal view virtual {
-        uint payloadSizeLimit = payloadSizeLimitLookup[_dstChainId];
-        if (payloadSizeLimit == 0) {
-            // use default if not set
-            payloadSizeLimit = DEFAULT_PAYLOAD_SIZE_LIMIT;
-        }
-        require(
-            _payloadSize <= payloadSizeLimit,
-            "LzApp: payload size is too large"
         );
     }
 
@@ -177,28 +131,6 @@ abstract contract LzApp is
         bytes memory path = trustedRemoteLookup[_remoteChainId];
         require(path.length != 0, "LzApp: no trusted path record");
         return path.sliceBytes(0, path.length - 20); // the last 20 bytes should be address(this)
-    }
-
-    function setPrecrime(address _precrime) external onlyOwner {
-        precrime = _precrime;
-        emit SetPrecrime(_precrime);
-    }
-
-    function setMinDstGas(
-        uint16 _dstChainId,
-        uint16 _packetType,
-        uint _minGas
-    ) external onlyOwner {
-        minDstGasLookup[_dstChainId][_packetType] = _minGas;
-        emit SetMinDstGas(_dstChainId, _packetType, _minGas);
-    }
-
-    // if the size is 0, it means default size limit
-    function setPayloadSizeLimit(
-        uint16 _dstChainId,
-        uint _size
-    ) external onlyOwner {
-        payloadSizeLimitLookup[_dstChainId] = _size;
     }
 
     //--------------------------- VIEW FUNCTION ----------------------------------------
